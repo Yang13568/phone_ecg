@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/nav_home"
+        android:icon="@drawable/ic_home_24"
+        android:title="Home" />
+    <item
+        android:id="@+id/nav_state"
+        android:icon="@drawable/ic_state_24"
+        android:title="State" />
+    <item
+        android:id="@+id/nav_record"
+        android:icon="@drawable/ic_record_24"
+        android:title="Record" />
+    <item
+        android:id="@+id/nav_family"
+        android:icon="@drawable/ic_family_24"
+        android:title="Family" />
+    <item
+        android:id="@+id/logout"
+        android:icon="@drawable/ic_baseline_logout"
+        android:title="Logout"/>
+</menu>
