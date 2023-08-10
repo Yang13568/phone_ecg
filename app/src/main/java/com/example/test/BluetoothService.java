@@ -26,7 +26,7 @@ import android.util.Log;
  */
 public class BluetoothService {
     // Debugging
-    private static final String TAG = "BluetoothServiceLog";
+    private static final String TAG = "BluetoothService";
     private static final boolean D = true;
 
     // Name for the SDP record when creating server socket

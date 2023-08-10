@@ -71,7 +71,7 @@ public class ChartView extends View
         mLastX = 0;
         mNextX = 0;
         mLastY = 0;
-        mSpeed = 5.0f;
+        mSpeed = 20.0f;
         mMaxX = X_Axis;
 
         //Set mPaint 各項參數

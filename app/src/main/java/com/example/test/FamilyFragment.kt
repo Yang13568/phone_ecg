@@ -48,6 +48,7 @@ class FamilyFragment : Fragment() {
     private lateinit var mlv_device: ListView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
 
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -63,14 +64,13 @@ class FamilyFragment : Fragment() {
             Toast.makeText(requireContext(), "此裝置不支援藍芽", Toast.LENGTH_SHORT).show()
             return
         }
-
         mStatusTextView = view.findViewById(R.id.textViewStatus)
         mDataTextView = view.findViewById(R.id.textViewData)
         mlv_device = view.findViewById(R.id.lv_device)
         showListButton = view.findViewById(R.id.buttonShowList)
-        showListButton.setOnClickListener { showDeviceListDialog() }
+        showListButton.setOnClickListener {showDeviceListDialog()}
         mbtn_Scan = view.findViewById(R.id.btn_scan)
-        mbtn_Scan.setOnClickListener { scan() }
+        mbtn_Scan.setOnClickListener { scan()}
         mBTArrayAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1)
         mlv_device.adapter = mBTArrayAdapter
 
@@ -79,6 +79,7 @@ class FamilyFragment : Fragment() {
         requireActivity().windowManager.defaultDisplay.getMetrics(displayMetrics)
         val screenWidth = displayMetrics.widthPixels
         mChartView.setX_Axis(screenWidth)
+        setupBluetoothService()
     }
 
     private fun resetECGService() {
@@ -101,22 +102,30 @@ class FamilyFragment : Fragment() {
     private fun showDeviceListDialog() {
         val builder = AlertDialog.Builder(requireContext())
         builder.setTitle("選擇藍芽裝置")
-        val deviceNames = Array(mDeviceList.size) { "" }
-
+        mDeviceList.addAll(mBluetoothAdapter.bondedDevices)
+        val deviceNames = arrayOfNulls<String>(mDeviceList.size)
         // Check if the BLUETOOTH_CONNECT permission is granted
         if (ActivityCompat.checkSelfPermission(
                 requireContext(),
                 android.Manifest.permission.BLUETOOTH_CONNECT
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            for (i in mDeviceList.indices) {
-                deviceNames[i] = mDeviceList[i].name
+            if(deviceNames.isNotEmpty()) {
+                Log.d(TAG, "有再收尋")
+
+                for (i in mDeviceList.indices) {
+                    Log.d(TAG,"長度"+mDeviceList.size)
+                    deviceNames[i] = mDeviceList[i].name
+                    Log.d(TAG, "第" + i + "個" + deviceNames[i])
+                }
+                builder.setItems(deviceNames) { _, which ->
+                    val selectedDevice = mDeviceList[which]
+                    mBluetoothService.connect(selectedDevice)
+                }
+                builder.show()
+            }else{
+                Toast.makeText(requireContext(), "沒有以配對的藍芽裝置", Toast.LENGTH_SHORT).show()
             }
-            builder.setItems(deviceNames) { _, which ->
-                val selectedDevice = mDeviceList[which]
-                mBluetoothService.connect(selectedDevice)
-            }
-            builder.show()
         } else {
             // Handle permission not granted here if needed
             // For example, show a message or request permission again
@@ -170,7 +179,6 @@ class FamilyFragment : Fragment() {
             setupBluetoothService()
         }
     }
-
 
     override fun onStart() {
         super.onStart()
@@ -254,6 +262,7 @@ class FamilyFragment : Fragment() {
     }
 
     private fun handleBluetoothState(state: Int) {
+        Log.d(TAG, "handleBluetoothState: State = $state")
         when (state) {
             BluetoothService.STATE_CONNECTED -> {
                 mStatusTextView.text = "Bluetooth Status:已連線"

@@ -44,7 +44,7 @@
         <ListView
             android:id="@+id/lv_device"
             android:layout_width="360dp"
-            android:layout_height="200dp"
+            android:layout_height="126dp"
             android:layout_gravity="center"
             android:layout_marginLeft="16dp"
             android:layout_marginTop="5dp"
@@ -108,13 +108,13 @@
             android:id="@+id/buttonShowList"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Button" />
+            android:text="收尋以配對藍芽裝置" />
 
         <Button
             android:id="@+id/btn_scan"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="搜尋" />
+            android:text="搜尋附近藍芽裝置" />
 
 
     </LinearLayout>
