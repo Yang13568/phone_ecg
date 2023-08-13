@@ -1,5 +1,6 @@
 package com.example.test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -58,6 +59,8 @@ public class BluetoothService {
     public static final String TOAST = "";
 
     private final ConnectedThread [] thd = new ConnectedThread[1024];
+
+    private volatile boolean lock = false;
 
     /**
      * Constructor. Prepares a new BluetoothChat session.
@@ -421,17 +424,25 @@ public class BluetoothService {
                     Log.i(TAG,"資料送出");
 
                     bytes = mmInStream.read(buffer);
-                    Log.i(TAG, Arrays.toString(buffer));
-                    Log.i(TAG, String.valueOf(bytes));
+                    String InfoStr = new String(buffer, 0, buffer.length-1 );    //去掉結尾0x0D
 
-                    // Send the obtained bytes to the UI Activity
-                    // arg1-> length, arg2-> -1, obj->rcvData
                     rcvData = new byte[bytes];
                     System.arraycopy(buffer, 0, rcvData, 0, bytes);
+                    Log.d("buffer show", "顯示" + InfoStr);
+
+                    while(lock){
+
+                    }
+                    lock=true;
 
                     Log.i(TAG,"資料送出2");
                     mHandler.obtainMessage(FamilyFragment.MESSAGE_READ, bytes, -1, rcvData)
                             .sendToTarget();
+
+                    for(int i =0;i<1000;i++){
+
+                    }
+                    lock = false;
 
                     Log.i(TAG,"資料送出3");
                 } catch (IOException e) {

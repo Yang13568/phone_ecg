@@ -22,9 +22,12 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 
+
+@SuppressLint("MissingPermission")
 class FamilyFragment : Fragment() {
     private lateinit var mBluetoothAdapter: BluetoothAdapter
     private lateinit var mBluetoothService: BluetoothService
+    private lateinit var mECGService: ECGService
 
     companion object {
         @kotlin.jvm.JvmField
@@ -37,6 +40,10 @@ class FamilyFragment : Fragment() {
         const val TOAST = "toast_message"
         private const val TAG = "BluetoothService"
         private const val REQUEST_ENABLE_BT = 1
+        const val MESSAGE_RAW = 1
+        const val MESSAGE_INFO = 2
+        const val MESSAGE_KY_STATE = 3
+        const val KY_INFO = "KY_Info"
     }
 
     private val mDeviceList: MutableList<BluetoothDevice> = ArrayList()
@@ -68,9 +75,9 @@ class FamilyFragment : Fragment() {
         mDataTextView = view.findViewById(R.id.textViewData)
         mlv_device = view.findViewById(R.id.lv_device)
         showListButton = view.findViewById(R.id.buttonShowList)
-        showListButton.setOnClickListener {showDeviceListDialog()}
+        showListButton.setOnClickListener { showDeviceListDialog() }
         mbtn_Scan = view.findViewById(R.id.btn_scan)
-        mbtn_Scan.setOnClickListener { scan()}
+        mbtn_Scan.setOnClickListener { scan() }
         mBTArrayAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1)
         mlv_device.adapter = mBTArrayAdapter
 
@@ -83,18 +90,22 @@ class FamilyFragment : Fragment() {
     }
 
     private fun resetECGService() {
-        val cmd = byteArrayOf('R'.toByte(), 'S'.toByte(), 0x0D)
+        val cmd = byteArrayOf('R'.code.toByte(), 'S'.code.toByte(), 0x0D)
         sendCmd(cmd)
-        if (mChartView != null)
-            mChartView.ClearChart()
+        mECGService.reset()
+        mChartView.ClearChart()
     }
 
     private fun sendCmd(Cmd: ByteArray) {
-        if (mBluetoothService.getState() != BluetoothService.STATE_CONNECTED) {
+        // Check that we're actually connected before trying anything
+        if (mBluetoothService.getState() !== BluetoothService.STATE_CONNECTED) {
+            Log.d(TAG, "not connected")
             return
         }
 
+        // Check that there's actually something to send
         if (Cmd.isNotEmpty()) {
+            // Get the message bytes and tell the BluetoothChatService to write
             mBluetoothService.write(Cmd)
         }
     }
@@ -110,11 +121,11 @@ class FamilyFragment : Fragment() {
                 android.Manifest.permission.BLUETOOTH_CONNECT
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            if(deviceNames.isNotEmpty()) {
+            if (deviceNames.isNotEmpty()) {
                 Log.d(TAG, "有再收尋")
 
                 for (i in mDeviceList.indices) {
-                    Log.d(TAG,"長度"+mDeviceList.size)
+                    Log.d(TAG, "長度" + mDeviceList.size)
                     deviceNames[i] = mDeviceList[i].name
                     Log.d(TAG, "第" + i + "個" + deviceNames[i])
                 }
@@ -123,7 +134,7 @@ class FamilyFragment : Fragment() {
                     mBluetoothService.connect(selectedDevice)
                 }
                 builder.show()
-            }else{
+            } else {
                 Toast.makeText(requireContext(), "沒有以配對的藍芽裝置", Toast.LENGTH_SHORT).show()
             }
         } else {
@@ -154,7 +165,9 @@ class FamilyFragment : Fragment() {
             }
         }
     }
+
     private val REQUEST_BLUETOOTH_PERMISSION = 1
+
     @RequiresApi(Build.VERSION_CODES.S)
     private fun checkBluetoothPermissions() {
         if (ActivityCompat.checkSelfPermission(
@@ -195,6 +208,7 @@ class FamilyFragment : Fragment() {
 
     private fun setupBluetoothService() {
         mBluetoothService = BluetoothService(requireContext(), mHandler)
+        mECGService = ECGService(requireContext(), mECGHandler)
         mBluetoothService.start()
     }
 
@@ -203,28 +217,39 @@ class FamilyFragment : Fragment() {
             BluetoothService.STATE_CONNECTED -> {
                 mStatusTextView.text = "Bluetooth Status:已連線"
                 Log.d("BluetoothService", "handleMessage: " + msg.arg1)
+                resetECGService()
             }
+
             BluetoothService.STATE_CONNECTING -> {
                 mStatusTextView.text = "Bluetooth Status:連線中..."
                 Log.d("BluetoothService", "handleMessage: " + msg.arg1)
             }
+
             BluetoothService.STATE_LISTEN -> {
                 mStatusTextView.text = "Bluetooth Status:收尋中..."
                 Log.d("BluetoothService", "handleMessage: " + msg.arg1)
                 handleBluetoothState(msg.arg1)
             }
+
             BluetoothService.STATE_NONE -> {
                 mStatusTextView.text = "Bluetooth Status:未連線"
                 Log.d("BluetoothService", "handleMessage: " + msg.arg1)
             }
+
             BluetoothService.MESSAGE_READ -> {
                 val readBuffer = msg.obj as ByteArray
+                Log.d(
+                    "BluetoothServiceData",
+                    "Received Data: ${readBuffer.joinToString(", ") { it.toString() }}"
+                )
                 val data = String(readBuffer, 0, msg.arg1)
+                Log.d("BluetoothServices", "handleMessage: $data")
                 mDataTextView.text = data
-                mChartView.Wave_Draw(readBuffer)
+                mECGService.DataHandler(readBuffer)
                 Log.d("BluetoothService", "handleMessage arg1: " + msg.arg1)
                 Log.d("BluetoothService", "handleMessage what: " + msg.what)
             }
+
             BluetoothService.MESSAGE_DEVICE_NAME -> {
                 val connectedDeviceName = msg.data.getString(BluetoothService.DEVICE_NAME)
                 Toast.makeText(
@@ -233,6 +258,7 @@ class FamilyFragment : Fragment() {
                     Toast.LENGTH_SHORT
                 ).show()
             }
+
             BluetoothService.MESSAGE_TOAST -> {
                 val toastMessage = msg.data.getString(BluetoothService.TOAST)
                 Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
@@ -268,14 +294,17 @@ class FamilyFragment : Fragment() {
                 mStatusTextView.text = "Bluetooth Status:已連線"
                 Log.d("BluetoothService", "handleBluetoothState: Connected")
             }
+
             BluetoothService.STATE_CONNECTING -> {
                 mStatusTextView.text = "Bluetooth Status:連線中..."
                 Log.d("BluetoothService", "handleBluetoothState: Connecting")
             }
+
             BluetoothService.STATE_LISTEN -> {
                 mStatusTextView.text = "Bluetooth Status:收尋中..."
                 Log.d("BluetoothService", "handleBluetoothState: Listen")
             }
+
             BluetoothService.STATE_NONE -> {
                 mStatusTextView.text = "Bluetooth Status:未連線"
                 Log.d("BluetoothService", "handleBluetoothState: None")
@@ -292,5 +321,34 @@ class FamilyFragment : Fragment() {
         requireContext().unregisterReceiver(mBluetoothReceiver)
     }
 
+    private val mECGHandler = Handler(Handler.Callback { msg ->
+        when (msg.what) {
+            MESSAGE_RAW -> {
+                val rawBuf = msg.obj as ByteArray
+                Log.d(
+                    "BluetoothServiceChart",
+                    "Received Data: ${rawBuf.joinToString(", ") { it.toString() }}")
+                mChartView.Wave_Draw(rawBuf)
+            }
+
+            MESSAGE_INFO -> {
+                val info: List<String> = msg.data.getString(KY_INFO)!!
+                    .split("=")
+                if (info[0] == "IHR") {
+//                    IHRText.setText(info[1])
+                } else if (info[0] == "TE" || info[0] == "VER") {
+
+                }
+                else{
+                    if(info[0] == "HR"){
+//                        InfoText.setText("")
+                    }
+//                    InfoText.append(info[0]+'='+info[1]+',')
+                }
+            }
+            MESSAGE_KY_STATE ->{}
+        }
+        true
+    })
 
 }
