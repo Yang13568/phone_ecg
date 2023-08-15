@@ -460,6 +460,7 @@ public class BluetoothService {
             // Keep listening to the InputStream while connected
             while (true) {
                 try {
+
                     Log.d(TAG, "顯示" + mmSocket.isConnected());
                     Log.i(TAG, "資料送出");
 

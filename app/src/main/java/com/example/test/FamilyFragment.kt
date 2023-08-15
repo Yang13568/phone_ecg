@@ -1,6 +1,5 @@
 package com.example.test
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
@@ -56,6 +55,20 @@ class FamilyFragment : Fragment() {
     private lateinit var mlv_device: ListView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
     private val REQUEST_BLUETOOTH_PERMISSION = 1
+    private val handler = Handler()
+    private val runnable = object : Runnable {
+        override fun run() {
+            update()
+            handler.postDelayed(this, 1)
+        }
+        private fun update() {
+            val cmd: ByteArray = byteArrayOf(0x0D)
+            sendCmd(cmd)
+            val cmd2: ByteArray = byteArrayOf('W'.toByte(), '+'.toByte(), 0x0D)
+            sendCmd(cmd2)
+        }
+    }
+
 
 
     override fun onCreateView(
@@ -91,10 +104,11 @@ class FamilyFragment : Fragment() {
         val screenWidth = displayMetrics.widthPixels
         mChartView.setX_Axis(screenWidth)
         setupBluetoothService()
+        handler.postDelayed(runnable, 1);
     }
 
     private fun resetECGService() {
-        val cmd = byteArrayOf('R'.code.toByte(), 'S'.code.toByte(), 0x0D)
+        val cmd: ByteArray = byteArrayOf('R'.code.toByte(), 'S'.code.toByte(), 0x0D)
         sendCmd(cmd)
         mECGService.reset()
         mChartView.ClearChart()
@@ -220,7 +234,7 @@ class FamilyFragment : Fragment() {
             BluetoothService.STATE_CONNECTED -> {
                 mStatusTextView.text = "Bluetooth Status:已連線"
                 Log.d("BluetoothService", "handleMessage: " + msg.arg1)
-                resetECGService()
+//                resetECGService()
             }
 
             BluetoothService.STATE_CONNECTING -> {
@@ -293,6 +307,10 @@ class FamilyFragment : Fragment() {
             BluetoothService.STATE_CONNECTED -> {
                 mStatusTextView.text = "Bluetooth Status:已連線"
                 Log.d("BluetoothService", "handleBluetoothState: Connected")
+//                var cmd = byteArrayOf(0x0D)
+//                sendCmd(cmd)
+//                cmd = byteArrayOf('W'.code.toByte(), '+'.code.toByte(), 0x0D)
+//                sendCmd(cmd)
             }
 
             BluetoothService.STATE_CONNECTING -> {
