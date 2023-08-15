@@ -1,5 +1,6 @@
 package com.example.test
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
@@ -54,6 +55,7 @@ class FamilyFragment : Fragment() {
     private lateinit var mbtn_Scan: Button
     private lateinit var mlv_device: ListView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
+    private val REQUEST_BLUETOOTH_PERMISSION = 1
 
 
     override fun onCreateView(
@@ -77,7 +79,9 @@ class FamilyFragment : Fragment() {
         showListButton = view.findViewById(R.id.buttonShowList)
         showListButton.setOnClickListener { showDeviceListDialog() }
         mbtn_Scan = view.findViewById(R.id.btn_scan)
-        mbtn_Scan.setOnClickListener { scan() }
+        mbtn_Scan.setOnClickListener {
+            scan()
+        }
         mBTArrayAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1)
         mlv_device.adapter = mBTArrayAdapter
 
@@ -166,7 +170,6 @@ class FamilyFragment : Fragment() {
         }
     }
 
-    private val REQUEST_BLUETOOTH_PERMISSION = 1
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun checkBluetoothPermissions() {
@@ -238,13 +241,10 @@ class FamilyFragment : Fragment() {
 
             BluetoothService.MESSAGE_READ -> {
                 val readBuffer = msg.obj as ByteArray
-                Log.d(
-                    "BluetoothServiceData",
-                    "Received Data: ${readBuffer.joinToString(", ") { it.toString() }}"
-                )
                 val data = String(readBuffer, 0, msg.arg1)
-                Log.d("BluetoothServices", "handleMessage: $data")
                 mDataTextView.text = data
+                Log.d("WhatReceive", "handleMessage:$data")
+
                 mECGService.DataHandler(readBuffer)
                 Log.d("BluetoothService", "handleMessage arg1: " + msg.arg1)
                 Log.d("BluetoothService", "handleMessage what: " + msg.what)
@@ -273,7 +273,7 @@ class FamilyFragment : Fragment() {
             val action = intent.action
             if (BluetoothDevice.ACTION_FOUND == action) {
                 val device =
-                    intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice?
                 mBTArrayAdapter.add("${device?.name}\n${device?.address}")
                 mBTArrayAdapter.notifyDataSetChanged()
                 if (mBTArrayAdapter.getItem(0) != null)
@@ -327,7 +327,8 @@ class FamilyFragment : Fragment() {
                 val rawBuf = msg.obj as ByteArray
                 Log.d(
                     "BluetoothServiceChart",
-                    "Received Data: ${rawBuf.joinToString(", ") { it.toString() }}")
+                    "Received Data: ${rawBuf.joinToString(", ") { it.toString() }}"
+                )
                 mChartView.Wave_Draw(rawBuf)
             }
 
@@ -338,15 +339,15 @@ class FamilyFragment : Fragment() {
 //                    IHRText.setText(info[1])
                 } else if (info[0] == "TE" || info[0] == "VER") {
 
-                }
-                else{
-                    if(info[0] == "HR"){
+                } else {
+                    if (info[0] == "HR") {
 //                        InfoText.setText("")
                     }
 //                    InfoText.append(info[0]+'='+info[1]+',')
                 }
             }
-            MESSAGE_KY_STATE ->{}
+
+            MESSAGE_KY_STATE -> {}
         }
         true
     })
