@@ -171,7 +171,6 @@ public class BluetoothService {
     @SuppressLint("MissingPermission")
     public synchronized void connected(BluetoothSocket socket, BluetoothDevice device) {
         if (D) Log.d(TAG, "connected");
-
         // Cancel the thread that completed the connection
         if (mConnectThread != null) {
             mConnectThread.cancel();
@@ -207,6 +206,7 @@ public class BluetoothService {
         bundle.putString(FamilyFragment.DEVICE_NAME, device.getName());
         msg.setData(bundle);
         mHandler.sendMessage(msg);
+        Log.d("connected_check" , "connected");
 
         setState(STATE_CONNECTED);
     }
@@ -347,6 +347,7 @@ public class BluetoothService {
             if (D) Log.d(TAG, "cancel " + this);
             try {
                 mmServerSocket.close();
+                setState(STATE_NONE);
             } catch (IOException e) {
                 Log.e(TAG, "close() of server failed", e);
             }

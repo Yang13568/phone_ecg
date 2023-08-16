@@ -30,8 +30,7 @@ class FamilyFragment : Fragment() {
     private lateinit var mECGService: ECGService
 
     companion object {
-        @kotlin.jvm.JvmField
-        val MESSAGE_STATE_CHANGE: Int = 1
+        const val MESSAGE_STATE_CHANGE = 1
         const val MESSAGE_DEVICE_NAME = 2
         const val MESSAGE_TOAST = 3
         const val MESSAGE_READ = 4
@@ -55,12 +54,14 @@ class FamilyFragment : Fragment() {
     private lateinit var mlv_device: ListView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
     private val REQUEST_BLUETOOTH_PERMISSION = 1
+    private var isDeviceConnected = true
     private val handler = Handler()
     private val runnable = object : Runnable {
         override fun run() {
             update()
             handler.postDelayed(this, 1)
         }
+
         private fun update() {
             val cmd: ByteArray = byteArrayOf(0x0D)
             sendCmd(cmd)
@@ -70,11 +71,8 @@ class FamilyFragment : Fragment() {
     }
 
 
-
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View? {
         return inflater.inflate(R.layout.fragment_family, container, false)
     }
@@ -115,12 +113,6 @@ class FamilyFragment : Fragment() {
     }
 
     private fun sendCmd(Cmd: ByteArray) {
-        // Check that we're actually connected before trying anything
-        if (mBluetoothService.getState() !== BluetoothService.STATE_CONNECTED) {
-            Log.d(TAG, "not connected")
-            return
-        }
-
         // Check that there's actually something to send
         if (Cmd.isNotEmpty()) {
             // Get the message bytes and tell the BluetoothChatService to write
@@ -136,8 +128,7 @@ class FamilyFragment : Fragment() {
         val deviceNames = arrayOfNulls<String>(mDeviceList.size)
         // Check if the BLUETOOTH_CONNECT permission is granted
         if (ActivityCompat.checkSelfPermission(
-                requireContext(),
-                android.Manifest.permission.BLUETOOTH_CONNECT
+                requireContext(), android.Manifest.permission.BLUETOOTH_CONNECT
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             if (deviceNames.isNotEmpty()) {
@@ -172,8 +163,7 @@ class FamilyFragment : Fragment() {
             if (mBluetoothAdapter.isEnabled) {
                 mBTArrayAdapter.clear()
                 requireContext().registerReceiver(
-                    mBluetoothReceiver,
-                    IntentFilter(BluetoothDevice.ACTION_FOUND)
+                    mBluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND)
                 )
                 mBluetoothAdapter.startDiscovery()
                 Toast.makeText(requireContext(), "Discovery Started", Toast.LENGTH_SHORT).show()
@@ -187,22 +177,16 @@ class FamilyFragment : Fragment() {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun checkBluetoothPermissions() {
         if (ActivityCompat.checkSelfPermission(
-                requireContext(),
-                android.Manifest.permission.BLUETOOTH_CONNECT
-            ) !=
-            PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(
-                requireContext(),
-                android.Manifest.permission.BLUETOOTH_SCAN
-            ) !=
-            PackageManager.PERMISSION_GRANTED
+                requireContext(), android.Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(
+                requireContext(), android.Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(
-                requireActivity(),
-                arrayOf(
+                requireActivity(), arrayOf(
                     android.Manifest.permission.BLUETOOTH_CONNECT,
                     android.Manifest.permission.BLUETOOTH_SCAN
-                ),
-                REQUEST_BLUETOOTH_PERMISSION
+                ), REQUEST_BLUETOOTH_PERMISSION
             )
         } else {
             setupBluetoothService()
@@ -227,6 +211,7 @@ class FamilyFragment : Fragment() {
         mECGService = ECGService(requireContext(), mECGHandler)
         mBluetoothService.start()
     }
+
 
     private val mHandler = Handler(Handler.Callback { msg ->
         when (msg.what) {
@@ -264,12 +249,14 @@ class FamilyFragment : Fragment() {
             }
 
             BluetoothService.MESSAGE_DEVICE_NAME -> {
-                val connectedDeviceName = msg.data.getString(BluetoothService.DEVICE_NAME)
-                Toast.makeText(
-                    requireContext(),
-                    "已連線至 $connectedDeviceName",
-                    Toast.LENGTH_SHORT
-                ).show()
+                if (isDeviceConnected) {
+                    val connectedDeviceName = msg.data.getString(BluetoothService.DEVICE_NAME)
+                    Log.d("check_state", "connected:重複執行")
+                    Toast.makeText(
+                        requireContext(), "已連線至 $connectedDeviceName", Toast.LENGTH_SHORT
+                    ).show()
+                    isDeviceConnected = false
+                }
             }
 
             BluetoothService.MESSAGE_TOAST -> {
@@ -289,13 +276,14 @@ class FamilyFragment : Fragment() {
                     intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice?
                 mBTArrayAdapter.add("${device?.name}\n${device?.address}")
                 mBTArrayAdapter.notifyDataSetChanged()
-                if (mBTArrayAdapter.getItem(0) != null)
-                    Log.d("BluetoothAdapter", "有東西")
-                else
-                    Log.d("BluetoothAdapter", "沒東西")
+                if (mBTArrayAdapter.getItem(0) != null) Log.d("BluetoothAdapter", "有東西")
+                else Log.d("BluetoothAdapter", "沒東西")
             }
             if (BluetoothDevice.ACTION_ACL_DISCONNECTED == action) {
+                isDeviceConnected = true
                 mStatusTextView.text = "Bluetooth Status:連線中斷"
+                mChartView.ClearChart()
+
             }
         }
     }
@@ -306,10 +294,6 @@ class FamilyFragment : Fragment() {
             BluetoothService.STATE_CONNECTED -> {
                 mStatusTextView.text = "Bluetooth Status:已連線"
                 Log.d("BluetoothService", "handleBluetoothState: Connected")
-//                var cmd = byteArrayOf(0x0D)
-//                sendCmd(cmd)
-//                cmd = byteArrayOf('W'.code.toByte(), '+'.code.toByte(), 0x0D)
-//                sendCmd(cmd)
             }
 
             BluetoothService.STATE_CONNECTING -> {
@@ -350,8 +334,7 @@ class FamilyFragment : Fragment() {
             }
 
             MESSAGE_INFO -> {
-                val info: List<String> = msg.data.getString(KY_INFO)!!
-                    .split("=")
+                val info: List<String> = msg.data.getString(KY_INFO)!!.split("=")
                 if (info[0] == "IHR") {
 //                    IHRText.setText(info[1])
                 } else if (info[0] == "TE" || info[0] == "VER") {
