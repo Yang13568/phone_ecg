@@ -17,13 +17,13 @@
             android:text="Bluetooth Status:"
             android:textSize="18sp" />
 
-        <TextView
-            android:id="@+id/textViewData"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Received Data:"
-            android:textSize="18sp" />
+<!--        <TextView-->
+<!--            android:id="@+id/textViewData"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_marginTop="8dp"-->
+<!--            android:text="Received Data:"-->
+<!--            android:textSize="18sp" />-->
 
         <!--    <ScrollView-->
         <!--        android:layout_width="match_parent"-->
@@ -53,7 +53,7 @@
         <com.example.test.ChartView
             android:id="@+id/Chart"
             android:layout_width="fill_parent"
-            android:layout_height="300dp"
+            android:layout_height="220dp"
 
             android:background="#000000"
             android:keepScreenOn="true"

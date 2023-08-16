@@ -29,7 +29,7 @@ public class ChartView extends View {
     private static final boolean D = true;
 
     protected static int mTileSize;
-    final float PROPORTION = 1f;
+    final float PROPORTION = 2.5f;
 
     private Bitmap mBitmap;
     private Paint mPaint = new Paint();
@@ -63,8 +63,8 @@ public class ChartView extends View {
         if (D) Log.d(TAG, "ChartView Initial");
 
         //get argument in value/dimens
-        X_Axis = (int) res.getDimension(R.dimen.Max_X_Axis);    //Default 100px
-        Y_Axis = (int) res.getDimension(R.dimen.Max_Y_Axis);    //Default 400px
+        X_Axis = (int) res.getDimension(R.dimen.Max_X_Axis);
+        Y_Axis = (int) res.getDimension(R.dimen.Max_Y_Axis);
 
         mLastX = 0;
         mNextX = 0;
@@ -168,7 +168,6 @@ public class ChartView extends View {
                     }
                     mLastX = mNextX;
                     mLastY = mNextY;
-
                 }
 
                 invalidate();//invalidate()觸發 onDraw 事件

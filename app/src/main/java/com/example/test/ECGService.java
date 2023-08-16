@@ -64,8 +64,6 @@ public class ECGService {
 
         for (int i = 0; i < Data.length; i++) {
             //若資訊為Raw=32,後面接到的32bytes 全為RawData
-            Log.d(TAG, "DataHandler iRawBuffer : " + iRawData);
-            Log.d(TAG, "DataHandler RawSize32: " + RawSize32);
             if (iRawData < RawSize32) {
                 Log.d(TAG, "DataHandler 在這裡: " + iRawBuffer);
                 Raw_Buffer[iRawBuffer] = Data[i];

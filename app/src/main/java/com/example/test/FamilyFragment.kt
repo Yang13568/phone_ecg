@@ -48,7 +48,7 @@ class FamilyFragment : Fragment() {
     private val mDeviceList: MutableList<BluetoothDevice> = ArrayList()
     private lateinit var mChartView: ChartView
     private lateinit var mStatusTextView: TextView
-    private lateinit var mDataTextView: TextView
+
     private lateinit var showListButton: Button
     private lateinit var mbtn_Scan: Button
     private lateinit var mlv_device: ListView
@@ -85,7 +85,7 @@ class FamilyFragment : Fragment() {
             return
         }
         mStatusTextView = view.findViewById(R.id.textViewStatus)
-        mDataTextView = view.findViewById(R.id.textViewData)
+
         mlv_device = view.findViewById(R.id.lv_device)
         showListButton = view.findViewById(R.id.buttonShowList)
         showListButton.setOnClickListener { showDeviceListDialog() }
@@ -240,7 +240,6 @@ class FamilyFragment : Fragment() {
             BluetoothService.MESSAGE_READ -> {
                 val readBuffer = msg.obj as ByteArray
                 val data = String(readBuffer, 0, msg.arg1)
-                mDataTextView.text = data
                 Log.d("WhatReceive", "handleMessage:$data")
 
                 mECGService.DataHandler(readBuffer)
