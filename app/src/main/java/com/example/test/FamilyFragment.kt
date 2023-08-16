@@ -130,6 +130,7 @@ class FamilyFragment : Fragment() {
 
     private fun showDeviceListDialog() {
         val builder = AlertDialog.Builder(requireContext())
+        mDeviceList.clear()
         builder.setTitle("選擇藍芽裝置")
         mDeviceList.addAll(mBluetoothAdapter.bondedDevices)
         val deviceNames = arrayOfNulls<String>(mDeviceList.size)
@@ -143,9 +144,7 @@ class FamilyFragment : Fragment() {
                 Log.d(TAG, "有再收尋")
 
                 for (i in mDeviceList.indices) {
-                    Log.d(TAG, "長度" + mDeviceList.size)
                     deviceNames[i] = mDeviceList[i].name
-                    Log.d(TAG, "第" + i + "個" + deviceNames[i])
                 }
                 builder.setItems(deviceNames) { _, which ->
                     val selectedDevice = mDeviceList[which]

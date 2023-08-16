@@ -461,9 +461,6 @@ public class BluetoothService {
             while (true) {
                 try {
 
-                    Log.d(TAG, "顯示" + mmSocket.isConnected());
-                    Log.i(TAG, "資料送出");
-
                     bytes = mmInStream.read(buffer);
                     String InfoStr = new String(buffer, 0, buffer.length - 1); //去掉結尾0x0D
 
@@ -473,11 +470,9 @@ public class BluetoothService {
                     Log.d("buffer show", "顯示" + InfoStr);
 
                     lock.lock();
-                    Log.i(TAG, "資料送出2");
                     mHandler.obtainMessage(FamilyFragment.MESSAGE_READ, bytes, -1, rcvData)
                             .sendToTarget();
 
-                    Log.i(TAG, "資料送出3");
                     for (int i = 0; i < 1000; i++) {
                         // 等待一段時間
                     }
