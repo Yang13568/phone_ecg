@@ -2,35 +2,39 @@ package com.example.test
 
 import android.content.ContentValues.TAG
 import android.os.Bundle
-import com.example.test.StateFragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
-import android.content.Intent
-import android.nfc.Tag
+import android.content.pm.PackageManager
 import android.util.Log
 import android.widget.Button
-import com.example.test.R
-import com.example.test.HomeFragment
-import com.example.test.FamilyFragment
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.google.firebase.firestore.FirebaseFirestore
-import org.w3c.dom.Text
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import kotlin.math.log
+import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.content.Intent
+import android.os.Build
+import androidx.annotation.RequiresApi
 
 /**
  * A simple [Fragment] subclass.
  * Use the [HomeFragment.newInstance] factory method to
  * create an instance of this fragment.
  */
+@SuppressLint("InlinedApi")
 class HomeFragment : Fragment() {
     // TODO: Rename and change types of parameters
     private var mParam1: String? = null
     private var mParam2: String? = null
     private var csvList = mutableListOf<List<Float>>()
+    private val REQUEST_BLUETOOTH_PERMISSION = 1
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,12 +48,13 @@ class HomeFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_home, container, false)
     }
 
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        checkBluetoothPermissions()
         val email = requireActivity().intent.getStringExtra("email")
         var name = view.findViewById<TextView>(R.id.textView)
         var mail = view.findViewById<TextView>(R.id.textView2)
@@ -91,7 +96,7 @@ class HomeFragment : Fragment() {
                     line = it.readLine()
                 }
             }
-            for (i in 0..199 ){
+            for (i in 0..199) {
                 val data = hashMapOf(
                     "ecgData" to csvList[i]
                 )
@@ -114,6 +119,22 @@ class HomeFragment : Fragment() {
                         Log.e("Firestore", "查詢文件失敗：$e")
                     }
             }
+        }
+    }
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun checkBluetoothPermissions() {
+        if (ActivityCompat.checkSelfPermission(
+                requireContext(), android.Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(
+                requireContext(), android.Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                requireActivity(), arrayOf(
+                    android.Manifest.permission.BLUETOOTH_CONNECT,
+                    android.Manifest.permission.BLUETOOTH_SCAN
+                ), REQUEST_BLUETOOTH_PERMISSION
+            )
         }
     }
 
@@ -141,4 +162,5 @@ class HomeFragment : Fragment() {
             return fragment
         }
     }
+
 }

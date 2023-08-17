@@ -70,19 +70,25 @@ class FamilyFragment : Fragment() {
         }
     }
 
-
+    @SuppressLint("NewApi")
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View? {
         return inflater.inflate(R.layout.fragment_family, container, false)
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         if (mBluetoothAdapter == null) {
             Toast.makeText(requireContext(), "此裝置不支援藍芽", Toast.LENGTH_SHORT).show()
             return
+        }
+        if (!mBluetoothAdapter.isEnabled) {
+            val enableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            startActivityForResult(enableIntent, REQUEST_ENABLE_BT)
         }
         mStatusTextView = view.findViewById(R.id.textViewStatus)
 
@@ -188,8 +194,6 @@ class FamilyFragment : Fragment() {
                     android.Manifest.permission.BLUETOOTH_SCAN
                 ), REQUEST_BLUETOOTH_PERMISSION
             )
-        } else {
-            setupBluetoothService()
         }
     }
 
