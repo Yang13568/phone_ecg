@@ -28,6 +28,7 @@ class FamilyFragment : Fragment() {
     private lateinit var mBluetoothAdapter: BluetoothAdapter
     private lateinit var mBluetoothService: BluetoothService
     private lateinit var mECGService: ECGService
+    private var delay = 0
 
     companion object {
         const val MESSAGE_STATE_CHANGE = 1
@@ -48,7 +49,8 @@ class FamilyFragment : Fragment() {
     private val mDeviceList: MutableList<BluetoothDevice> = ArrayList()
     private lateinit var mChartView: ChartView
     private lateinit var mStatusTextView: TextView
-
+    private lateinit var mIhrText: TextView
+    private lateinit var mTeText: TextView
     private lateinit var showListButton: Button
     private lateinit var mbtn_Scan: Button
     private lateinit var mlv_device: ListView
@@ -63,10 +65,13 @@ class FamilyFragment : Fragment() {
         }
 
         private fun update() {
-            val cmd: ByteArray = byteArrayOf(0x0D)
-            sendCmd(cmd)
-            val cmd2: ByteArray = byteArrayOf('W'.toByte(), '+'.toByte(), 0x0D)
-            sendCmd(cmd2)
+            delay = (delay + 1) % 1000
+            if (delay == 0 || delay == 500) {
+                val cmd: ByteArray = byteArrayOf(0x0D)
+                sendCmd(cmd)
+                val cmd2: ByteArray = byteArrayOf('W'.toByte(), '+'.toByte(), 0x0D)
+                sendCmd(cmd2)
+            }
         }
     }
 
@@ -95,6 +100,8 @@ class FamilyFragment : Fragment() {
         mlv_device = view.findViewById(R.id.lv_device)
         showListButton = view.findViewById(R.id.buttonShowList)
         showListButton.setOnClickListener { showDeviceListDialog() }
+        mIhrText = view.findViewById(R.id.IHR_Text)
+        mTeText = view.findViewById(R.id.TE_Text)
         mbtn_Scan = view.findViewById(R.id.btn_scan)
         mbtn_Scan.setOnClickListener {
             scan()
@@ -286,7 +293,8 @@ class FamilyFragment : Fragment() {
                 isDeviceConnected = true
                 mStatusTextView.text = "Bluetooth Status:連線中斷"
                 mChartView.ClearChart()
-
+                mIhrText.text = "0"
+                mTeText.text = "0.0"
             }
         }
     }
@@ -339,9 +347,22 @@ class FamilyFragment : Fragment() {
             MESSAGE_INFO -> {
                 val info: List<String> = msg.data.getString(KY_INFO)!!.split("=")
                 if (info[0] == "IHR") {
-//                    IHRText.setText(info[1])
+                    val iHr = info[1].toInt()
+                    mIhrText.text = iHr.toString()
                 } else if (info[0] == "TE" || info[0] == "VER") {
-
+                    // Log.d(TAG, "TE_Data_In")
+                    val part1 = info[1].substring(0, 3)
+                    try {
+                        val tmp1 = (part1.toDouble() / 10) - 4.0
+                        var c = tmp1.toString().split("00").toTypedArray()
+                        c = c[0].split("99").toTypedArray()
+                        if (tmp1 < 0)
+                            mTeText.text = "--"
+                        if (tmp1 >= 0)
+                            mTeText.text = c[0]
+                    } catch (e: Exception) {
+                        // Handle exception
+                    }
                 } else {
                     if (info[0] == "HR") {
 //                        InfoText.setText("")

@@ -206,7 +206,7 @@ public class BluetoothService {
         bundle.putString(FamilyFragment.DEVICE_NAME, device.getName());
         msg.setData(bundle);
         mHandler.sendMessage(msg);
-        Log.d("connected_check" , "connected");
+        Log.d("connected_check", "connected");
 
         setState(STATE_CONNECTED);
     }

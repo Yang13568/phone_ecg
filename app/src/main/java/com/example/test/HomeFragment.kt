@@ -11,14 +11,10 @@ import android.content.pm.PackageManager
 import android.util.Log
 import android.widget.Button
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import android.Manifest
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
-import android.content.Intent
 import android.os.Build
 import androidx.annotation.RequiresApi
 
