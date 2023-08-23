@@ -27,6 +27,8 @@ public class ECGService {
     private byte[] Info_Buffer;        //存放完整的資訊
     private final byte[] Raw_Buffer = new byte[RawBufferSize];        //存放32bytes Raw Data
 
+    private int count_chart = 0;
+
 
     public ECGService(Context context, Handler handler) {
         mHandler = handler;
@@ -72,15 +74,20 @@ public class ECGService {
                 iDataEnd = i;
 
                 if (iRawBuffer == RawBufferSize) {
+
                     // Notice (A)
                     byte[] rawData = new byte[RawBufferSize];
                     System.arraycopy(Raw_Buffer, 0, rawData, 0, RawBufferSize);
-
+                    int[] value = new int[64];
+                    for (int j = 0; j < rawData.length; j++) {
+                        value[j] = rawData[j] & 0xFF;
+                    }
+                    Log.d(TAG, "DataHandler rawData: " + Arrays.toString(rawData));
+                    Log.d(TAG, "DataHandler rawData: " + Arrays.toString(value));
                     // Send the obtained bytes to the UI Activity
                     // arg1-> length, arg2-> -1, obj->buffer
                     mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)
                             .sendToTarget();
-
                     iRawBuffer = 0;
                 }
 

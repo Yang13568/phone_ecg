@@ -1,5 +1,6 @@
 package com.example.test
 
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -45,7 +46,7 @@ class StateFragment : Fragment() {
     private var mParam2: String? = null
     private var timer: Timer? = null
     private var csvList = mutableListOf<List<Float>>()
-    private var anslist =  mutableListOf<Float>()
+    private var anslist = mutableListOf<Float>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (arguments != null) {
@@ -69,7 +70,7 @@ class StateFragment : Fragment() {
         val bluetoothBtn = view.findViewById<Button>(R.id.bluetooth_btn)
         val testBtn = view.findViewById<Button>(R.id.button2)
         val typetextView = view.findViewById<TextView>(R.id.textView11)
-        val accuracy_textview = view.findViewById<TextView>(R.id.textView5 )
+        val accuracy_textview = view.findViewById<TextView>(R.id.textView5)
         val linechart = view.findViewById<LineChart>(R.id.linechart)
         var data_number: Int = 0
         // 藍芽按鈕點擊
@@ -79,15 +80,15 @@ class StateFragment : Fragment() {
         //測資按鈕點擊
         var l = 0
         var st = 0
-        var correct_num=0
-        var sum_num=0
+        var correct_num = 0
+        var sum_num = 0
         testBtn.setOnClickListener() {
 
             if (st == 0) {
                 timer = Timer()
                 timer?.schedule(0, 100) {
                     activity?.runOnUiThread {
-                        val herttypr = runmodel(l,linechart)
+                        val herttypr = runmodel(l, linechart)
                         if (herttypr == 0) {
                             typetextView.setText("Normal")
                         } else if (herttypr == 1) {
@@ -100,13 +101,13 @@ class StateFragment : Fragment() {
                             typetextView.setText("Q")
                         }
                         sum_num++
-                        if (herttypr == anslist[l].toInt()){
+                        if (herttypr == anslist[l].toInt()) {
                             correct_num++
                         }
-                        val str = "準確率:"+correct_num+"/"+sum_num
+                        val str = "準確率:" + correct_num + "/" + sum_num
                         accuracy_textview.setText(str)
                     }
-                    if (l < csvList.size-1) l++
+                    if (l < csvList.size - 1) l++
                     else {
                         timer?.cancel()
                     }
@@ -158,6 +159,7 @@ class StateFragment : Fragment() {
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
     }
 
+    //找最大值
     private fun m(array: FloatArray): Int {
         var maxindex = -1
         var maxnum = 0.0F
@@ -180,7 +182,7 @@ class StateFragment : Fragment() {
     }
 
 
-    fun runmodel(data_number: Int,linechart:LineChart): Int {
+    fun runmodel(data_number: Int, linechart: LineChart): Int {
         var herttype = 0
         //讀csv檔
 
@@ -205,7 +207,7 @@ class StateFragment : Fragment() {
             axisLeft.isEnabled = false
             axisRight.isEnabled = false
         }
-        drawChart(data_number,linechart)
+        drawChart(data_number, linechart)
 //畫圖
 
 //        val data = csvList[data_number].toFloatArray()
@@ -246,7 +248,8 @@ class StateFragment : Fragment() {
         tflite.close()
         return herttype
     }
-    private fun drawChart(index: Int,linechart: LineChart) {
+
+    private fun drawChart(index: Int, linechart: LineChart) {
         if (csvList.isNotEmpty()) {
             val lineDataSet = LineDataSet(getData(index), "My Data")
             lineDataSet.color = Color.GREEN
@@ -267,13 +270,15 @@ class StateFragment : Fragment() {
         }
         return data
     }
+
     //從資料庫抓所有心跳
-    private fun getEcgfromdatabase(){
+    @SuppressLint("RestrictedApi")
+    private fun getEcgfromdatabase() {
         val email = requireActivity().intent.getStringExtra("email")
         val db = FirebaseFirestore.getInstance()
         val ref = db.collection("USER")
         val query = ref.whereEqualTo("userEmail", email)
-        var count=0
+        var count = 0
         query.get().addOnSuccessListener { documents ->
             for (document in documents) {
                 // 取得 "Ecg_Data" 集合的參考
@@ -284,16 +289,20 @@ class StateFragment : Fragment() {
                     for (ecgDataDocument in ecgDataQuerySnapshot.documents) {
                         val ecgData = ecgDataDocument.data // 取得每個文件的資料
                         val ecgDataList = ecgData?.get("ecgData") as List<Float>
-                        val newData = ecgDataList.subList(0,360)
+                        val newData = ecgDataList.subList(0, 360)
                         val data361 = ecgDataList[360]
-                        Log.d("DEBUG","ans: "+data361)
+                        Log.d("DEBUG", "ans: " + data361)
                         anslist.add(data361)
                         // 將 ecgDataList 添加到 csvList 中
                         csvList.add(newData)
                     }
                 }
             }
-            val toast = Toast.makeText(getApplicationContext(), "存取完畢:"+csvList.size.toString(), Toast.LENGTH_SHORT)
+            val toast = Toast.makeText(
+                getApplicationContext(),
+                "存取完畢:" + csvList.size.toString(),
+                Toast.LENGTH_SHORT
+            )
             toast.show()
             Log.d("DEBUG", "Data added to csvList: ${csvList.size}")
         }

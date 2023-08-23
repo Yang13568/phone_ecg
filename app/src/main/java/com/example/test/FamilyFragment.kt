@@ -28,6 +28,7 @@ class FamilyFragment : Fragment() {
     private lateinit var mBluetoothAdapter: BluetoothAdapter
     private lateinit var mBluetoothService: BluetoothService
     private lateinit var mECGService: ECGService
+    private lateinit var mStateService: StateService
     private var delay = 0
 
     companion object {
@@ -44,6 +45,7 @@ class FamilyFragment : Fragment() {
         const val MESSAGE_INFO = 2
         const val MESSAGE_KY_STATE = 3
         const val KY_INFO = "KY_Info"
+        const val STATE_TYPE = 1
     }
 
     private val mDeviceList: MutableList<BluetoothDevice> = ArrayList()
@@ -220,6 +222,7 @@ class FamilyFragment : Fragment() {
     private fun setupBluetoothService() {
         mBluetoothService = BluetoothService(requireContext(), mHandler)
         mECGService = ECGService(requireContext(), mECGHandler)
+        mStateService = StateService(requireContext(), mStateHandler)
         mBluetoothService.start()
     }
 
@@ -251,7 +254,7 @@ class FamilyFragment : Fragment() {
             BluetoothService.MESSAGE_READ -> {
                 val readBuffer = msg.obj as ByteArray
                 val data = String(readBuffer, 0, msg.arg1)
-                Log.d("WhatReceive", "handleMessage:$data")
+                Log.d("WhatReceive", "handleMessage: " + readBuffer.size)
 
                 mECGService.DataHandler(readBuffer)
                 Log.d("BluetoothService", "handleMessage arg1: " + msg.arg1)
@@ -337,10 +340,11 @@ class FamilyFragment : Fragment() {
         when (msg.what) {
             MESSAGE_RAW -> {
                 val rawBuf = msg.obj as ByteArray
-                Log.d(
-                    "BluetoothServiceChart",
-                    "Received Data: ${rawBuf.joinToString(", ") { it.toString() }}"
-                )
+                Log.d("BluetoothServiceChart", "handleMessage: " + rawBuf.size)
+//                Log.d(
+//                    "BluetoothServiceChart",
+//                    "Received Data: ${rawBuf.joinToString(", ") { it.toString() }}"
+//                )
                 mChartView.Wave_Draw(rawBuf)
             }
 
@@ -372,6 +376,26 @@ class FamilyFragment : Fragment() {
             }
 
             MESSAGE_KY_STATE -> {}
+        }
+        true
+    })
+    private val mStateHandler = Handler(Handler.Callback { msg ->
+        when (msg.what) {
+            STATE_TYPE -> {
+                val heartType = msg.arg1
+                Log.d("StateService", "handleMessage: $heartType")
+                if (heartType == 0) {
+                    Toast.makeText(requireContext(), "Normal", Toast.LENGTH_SHORT).show()
+                } else if (heartType == 1) {
+                    Toast.makeText(requireContext(), "S", Toast.LENGTH_SHORT).show()
+                } else if (heartType == 2) {
+                    Toast.makeText(requireContext(), "V", Toast.LENGTH_SHORT).show()
+                } else if (heartType == 3) {
+                    Toast.makeText(requireContext(), "F", Toast.LENGTH_SHORT).show()
+                } else if (heartType == 4) {
+                    Toast.makeText(requireContext(), "Q", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
         true
     })
