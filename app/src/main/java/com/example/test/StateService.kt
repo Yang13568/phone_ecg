@@ -7,12 +7,10 @@ import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import java.io.FileInputStream
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 
 class StateService(context: Context?, handler: Handler) {
     private var mHandler: Handler?
-    private var csvList = mutableListOf<Float>()
     private var stateContext: Context?
 
     init {

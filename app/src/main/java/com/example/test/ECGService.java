@@ -80,9 +80,19 @@ public class ECGService {
                     // Notice (A)
                     byte[] rawData = new byte[RawBufferSize];
                     System.arraycopy(Raw_Buffer, 0, rawData, 0, RawBufferSize);
+                    int[] value = new int[rawData.length];
+                    for (int k = 0; k < rawData.length; k++) {
+                        value[k] = rawData[k] & 0xFF;
+                    }
 
-                    mStateService.runModel(rawData);
-                    Log.d(TAG, "DataHandler rawData: " + Arrays.toString(rawData));
+                    byte[] byteArray = new byte[rawData.length];
+                    for (int k = 0; k < rawData.length; k++) {
+                        byteArray[k] = (byte) (value[k]);
+                    }
+
+                    mStateService.runModel(byteArray);
+                    Log.d(TAG, "DataHandler rawData: " + Arrays.toString(value));
+                    Log.d(TAG, "DataHandler rawData: " + Arrays.toString(byteArray));
                     // Send the obtained bytes to the UI Activity
                     // arg1-> length, arg2-> -1, obj->buffer
                     mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)
