@@ -55,6 +55,7 @@ class FamilyFragment : Fragment() {
     private lateinit var mbtn_Scan: Button
     private lateinit var mlv_device: ListView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
+    private val ecgrawdata: MutableList<Int> = mutableListOf()
     private val REQUEST_BLUETOOTH_PERMISSION = 1
     private var isDeviceConnected = true
     private val handler = Handler()
@@ -339,9 +340,20 @@ class FamilyFragment : Fragment() {
                 val rawBuf = msg.obj as ByteArray
                 Log.d(
                     "BluetoothServiceChart",
-                    "Received Data: ${rawBuf.joinToString(", ") { it.toString() }}"
+                    "Received Data:${rawBuf.joinToString(", ") { it.toString() }} end"
                 )
                 mChartView.Wave_Draw(rawBuf)
+                val rawString = "${rawBuf.joinToString(", ") { it.toString() }}"
+                val rawNumbers = rawString.split(", ").map { it.toInt() }
+                val integerArray = rawNumbers.toIntArray()
+                if (ecgrawdata.size<320){   //如果一次取320個點來找心跳
+                    ecgrawdata.addAll(integerArray.toList())
+                    if(ecgrawdata.size == 320){
+                        //找心跳
+                        val heart = findheartbeat()
+                        ecgrawdata.clear()  //清空
+                    }
+                }
             }
 
             MESSAGE_INFO -> {
@@ -375,5 +387,26 @@ class FamilyFragment : Fragment() {
         }
         true
     })
-
+    //找出一個完整心跳
+    private fun findheartbeat(){
+        var high1 = 0  //最大數
+        var high2 = 0  //第二大數
+        var high1index=0
+        var high2index=0
+        for (i in 0 until ecgrawdata.size){
+            if (ecgrawdata[i]>high2){
+                if (ecgrawdata[i] > high1) {
+                    high2 = high1
+                    high2index = high1index
+                    high1 = ecgrawdata[i]
+                    high1index = i
+                }else{
+                    high2 = ecgrawdata[i]
+                    high2index = i
+                }
+            }
+        }
+        val temp = high1index-high2index
+        Log.d("BluetoothServiceChart","間格:"+temp+"1:"+high1index+",2:"+high2index)
+    }
 }
