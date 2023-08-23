@@ -17,7 +17,7 @@ public class ECGService {
     public static final int STATE_NONE = 0;        // doing nothing
 
     private static final int RawSize32 = 32;
-    private static final int RawBufferSize = 64;        //為32的倍數
+    private static final int RawBufferSize = 360;        //為32的倍數
     private final Handler mHandler;
 
     private int iRawData;            //讀入RawData計數
@@ -27,14 +27,16 @@ public class ECGService {
     private byte[] Info_Buffer;        //存放完整的資訊
     private final byte[] Raw_Buffer = new byte[RawBufferSize];        //存放32bytes Raw Data
 
-    private int count_chart = 0;
+    private StateService mStateService;
 
+    public static final int STATE_TYPE = 1;
 
     public ECGService(Context context, Handler handler) {
         mHandler = handler;
         iRawData = RawSize32;        //Raw Data 計數初始值設為全滿
         iRawBuffer = 0;
         Info_Buffer = new byte[0];
+        mStateService = new StateService(context, mHandler);
     }
 
     public void reset() {
@@ -78,12 +80,9 @@ public class ECGService {
                     // Notice (A)
                     byte[] rawData = new byte[RawBufferSize];
                     System.arraycopy(Raw_Buffer, 0, rawData, 0, RawBufferSize);
-                    int[] value = new int[64];
-                    for (int j = 0; j < rawData.length; j++) {
-                        value[j] = rawData[j] & 0xFF;
-                    }
+
+                    mStateService.runModel(rawData);
                     Log.d(TAG, "DataHandler rawData: " + Arrays.toString(rawData));
-                    Log.d(TAG, "DataHandler rawData: " + Arrays.toString(value));
                     // Send the obtained bytes to the UI Activity
                     // arg1-> length, arg2-> -1, obj->buffer
                     mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)

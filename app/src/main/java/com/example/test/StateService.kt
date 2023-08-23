@@ -12,7 +12,7 @@ import java.nio.channels.FileChannel
 
 class StateService(context: Context?, handler: Handler) {
     private var mHandler: Handler?
-    private var csvList = mutableListOf<List<Float>>() // 用于存放 CSV 中的数据
+    private var csvList = mutableListOf<Float>()
     private var stateContext: Context?
 
     init {
@@ -42,16 +42,16 @@ class StateService(context: Context?, handler: Handler) {
         return maxindex
     }
 
-    private fun floatArrayToByteArray(inputData: FloatArray): ByteArray {
-        val buffer = ByteBuffer.allocate(inputData.size * 4) // 每个浮点数占用4个字节
-        buffer.order(ByteOrder.nativeOrder())
-        for (value in inputData) {
-            buffer.putFloat(value)
-        }
-        return buffer.array()
-    }
+//    private fun floatArrayToByteArray(inputData: FloatArray): ByteArray {
+//        val buffer = ByteBuffer.allocate(inputData.size * 4) // 每个浮点数占用4个字节
+//        buffer.order(ByteOrder.nativeOrder())
+//        for (value in inputData) {
+//            buffer.putFloat(value)
+//        }
+//        return buffer.array()
+//    }
 
-    fun runModel(data_number: Int): Int {
+    fun runModel(rawData: ByteArray) {
         var herttype = 0
 
         // 執行畫圖的 Runnable
@@ -62,7 +62,7 @@ class StateService(context: Context?, handler: Handler) {
         val outputShape = intArrayOf(1, 5) // 輸出張量的形狀
 
         // 建立並準備輸入張量
-        val inputTensor = prepareInputTensor(inputShape, csvList, data_number)
+        val inputTensor = prepareInputTensor(inputShape, rawData)
         val outputTensor = prepareOutputTensor(outputShape)
 
         // 執行模型
@@ -75,22 +75,19 @@ class StateService(context: Context?, handler: Handler) {
         tflite.close()
         mHandler!!.obtainMessage(FamilyFragment.STATE_TYPE, herttype, -1)
             .sendToTarget()
-        return herttype
     }
 
     // 創建並準備輸入張量
     private fun prepareInputTensor(
         shape: IntArray,
-        csvList: List<List<Float>>,
-        data_number: Int
+        data: ByteArray,
     ): TensorBuffer {
         val inputTensor = TensorBuffer.createFixedSize(shape, DataType.FLOAT32)
         val inputBuffer = inputTensor.buffer
         inputBuffer.rewind()
-
-        val inputData = csvList[data_number].toFloatArray()
-        val byteinputData = floatArrayToByteArray(inputData)
-        inputBuffer.put(byteinputData)
+//        val inputData = data.toFloatArray()
+//        val byteinputData = floatArrayToByteArray(inputData)
+        inputBuffer.put(data)
 
         return inputTensor
     }
