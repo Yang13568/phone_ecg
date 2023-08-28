@@ -29,7 +29,7 @@ public class ChartView extends View {
     private static final boolean D = true;
 
     protected static int mTileSize;
-    final float PROPORTION = 2.5f;
+    final float PROPORTION = 6.0f;
 
     private Bitmap mBitmap;
     private Paint mPaint = new Paint();
@@ -69,7 +69,7 @@ public class ChartView extends View {
         mLastX = 0;
         mNextX = 0;
         mLastY = 0;
-        mSpeed = 0.5f;
+        mSpeed = 1.8f;
         mMaxX = X_Axis;
 
         //Set mPaint 各項參數
@@ -158,8 +158,8 @@ public class ChartView extends View {
 
                 for (byte raw_datum : Raw_Data) {
                     mNextX = mLastX + mSpeed;
-                    if (mNextX == mMaxX) {
-                        mNextX = 0;
+                    if (mNextX >= mMaxX) {
+                        mNextX -= mMaxX;
                     }//跳過一個點，無損於ECG data 判讀
                     else {
                         //Java not support unsigned value, so byte's value is -128 ~ 127
