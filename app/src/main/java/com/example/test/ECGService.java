@@ -18,16 +18,19 @@ public class ECGService {
 
     private static final int RawSize32 = 32;
     private static final int RawBufferSize = 250;        //為32的倍數
+    private static final int DrawBufferSize = 16;
     private final Handler mHandler;
 
-    private int iRawData;            //讀入RawData計數
-    private int iRawBuffer;            //RawBuffer計數
+    private int iRawData;           //讀入RawData計數
+    private int iRawBuffer;         //RawBuffer計數
+    private int iDrawBuffer;        //DrawBuffer計數
     private int mState;
 
     private byte[] Info_Buffer;        //存放完整的資訊
-    private final byte[] Raw_Buffer = new byte[RawBufferSize];        //存放32bytes Raw Data
+    private final byte[] Raw_Buffer = new byte[RawBufferSize];        //存放250bytes Raw Data
+    private final byte[] Draw_Buffer = new byte[DrawBufferSize];        //存放32bytes Draw Data
 
-    private StateService mStateService;
+    private final StateService mStateService;
 
     public static final int STATE_TYPE = 1;
 
@@ -71,8 +74,10 @@ public class ECGService {
             if (iRawData < RawSize32) {
                 Log.d(TAG, "DataHandler 在這裡: " + iRawBuffer);
                 Raw_Buffer[iRawBuffer] = Data[i];
+                Draw_Buffer[iDrawBuffer] = Data[i];
                 iRawData++;
                 iRawBuffer++;
+                iDrawBuffer++;
                 iDataEnd = i;
 
                 if (iRawBuffer == RawBufferSize) {
@@ -96,9 +101,16 @@ public class ECGService {
                     Log.d(TAG, "DataHandler 360rawData: " + Arrays.toString(interpolatedData));
                     // Send the obtained bytes to the UI Activity
                     // arg1-> length, arg2-> -1, obj->buffer
-                    mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)
-                            .sendToTarget();
+//                    mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)
+//                            .sendToTarget();
                     iRawBuffer = 0;
+                }
+                if (iDrawBuffer == DrawBufferSize) {
+                    byte[] rawData = new byte[DrawBufferSize];
+                    System.arraycopy(Draw_Buffer, 0, rawData, 0, DrawBufferSize);
+                    mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, DrawBufferSize, -1, rawData)
+                            .sendToTarget();
+                    iDrawBuffer = 0;
                 }
 
             }

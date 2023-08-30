@@ -55,6 +55,7 @@ class FamilyFragment : Fragment() {
     private lateinit var showListButton: Button
     private lateinit var mbtn_Scan: Button
     private lateinit var mlv_device: ListView
+    private lateinit var mStateText: TextView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
     private val REQUEST_BLUETOOTH_PERMISSION = 1
     private var isDeviceConnected = true
@@ -104,6 +105,7 @@ class FamilyFragment : Fragment() {
         mIhrText = view.findViewById(R.id.IHR_Text)
         mTeText = view.findViewById(R.id.TE_Text)
         mbtn_Scan = view.findViewById(R.id.btn_scan)
+        mStateText = view.findViewById(R.id.state)
         mbtn_Scan.setOnClickListener {
             scan()
         }
@@ -386,7 +388,8 @@ class FamilyFragment : Fragment() {
 
                 if (toastMessage != null) {
                     Log.d("StateService", "handleMessage: $heartType")
-                    Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
+//                    Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
+                    mStateText.text = toastMessage
                 }
             }
 
