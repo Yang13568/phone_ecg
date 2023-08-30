@@ -297,6 +297,7 @@ class FamilyFragment : Fragment() {
                 mChartView.ClearChart()
                 mIhrText.text = "0"
                 mTeText.text = "0.0"
+                mStateText.text = "--"
             }
         }
     }
