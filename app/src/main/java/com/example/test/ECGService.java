@@ -17,7 +17,7 @@ public class ECGService {
     public static final int STATE_NONE = 0;        // doing nothing
 
     private static final int RawSize32 = 32;
-    private static final int RawBufferSize = 32;        //為32的倍數
+    private static final int RawBufferSize = 250;        //為32的倍數
     private final Handler mHandler;
 
     private int iRawData;            //讀入RawData計數
@@ -89,8 +89,11 @@ public class ECGService {
 //                    for (int k = 0; k < rawData.length; k++) {
 //                        byteArray[k] = (byte) (value[k]);
 //                    }
+                    byte[] interpolatedData = linearInterpolation(rawData, 360);
+                    mStateService.runModel(interpolatedData);
 
-//                    mStateService.runModel(rawData);
+                    Log.d(TAG, "DataHandler 250rawData: " + Arrays.toString(rawData));
+                    Log.d(TAG, "DataHandler 360rawData: " + Arrays.toString(interpolatedData));
                     // Send the obtained bytes to the UI Activity
                     // arg1-> length, arg2-> -1, obj->buffer
                     mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)
@@ -153,4 +156,32 @@ public class ECGService {
         return R;
     }
 
+    public static byte[] linearInterpolation(byte[] data, int newLength) {
+        int[] intData = new int[data.length];
+        for (int i = 0; i < data.length; i++) {
+            intData[i] = data[i] & 0xFF; // Convert bytes to positive int values
+        }
+
+        int[] interpolatedIntData = new int[newLength];
+        float step = (float) (intData.length - 1) / (newLength - 1);
+
+        for (int i = 0; i < newLength; i++) {
+            int index = (int) (i * step);
+            float fraction = i * step - index;
+
+            if (index == intData.length - 1) {
+                interpolatedIntData[i] = intData[index];
+            } else {
+                int interpolatedValue = Math.round((1 - fraction) * intData[index] + fraction * intData[index + 1]);
+                interpolatedIntData[i] = interpolatedValue;
+            }
+        }
+
+        byte[] interpolatedByteData = new byte[newLength];
+        for (int i = 0; i < newLength; i++) {
+            interpolatedByteData[i] = (byte) interpolatedIntData[i];
+        }
+
+        return interpolatedByteData;
+    }
 }
