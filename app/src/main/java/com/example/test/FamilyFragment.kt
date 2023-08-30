@@ -28,8 +28,6 @@ class FamilyFragment : Fragment() {
     private lateinit var mBluetoothAdapter: BluetoothAdapter
     private lateinit var mBluetoothService: BluetoothService
     private lateinit var mECGService: ECGService
-
-    //    private lateinit var mStateService: StateService
     private var delay = 0
 
     companion object {
@@ -223,7 +221,6 @@ class FamilyFragment : Fragment() {
     private fun setupBluetoothService() {
         mBluetoothService = BluetoothService(requireContext(), mHandler)
         mECGService = ECGService(requireContext(), mECGHandler)
-//        mStateService = StateService(requireContext(), mStateHandler)
         mBluetoothService.start()
     }
 
@@ -257,7 +254,6 @@ class FamilyFragment : Fragment() {
 //                val data = String(readBuffer, 0, msg.arg1)
 //                Log.d("WhatReceive", "handleMessage: " + readBuffer.size)
                 mECGService.DataHandler(readBuffer)
-//                mStateService.runModel(readBuffer)
                 Log.d("BluetoothService", "handleMessage arg1: " + msg.arg1)
                 Log.d("BluetoothService", "handleMessage what: " + msg.what)
             }

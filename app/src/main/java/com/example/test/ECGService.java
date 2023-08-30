@@ -6,9 +6,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 public class ECGService {
     // Debugging
@@ -19,7 +17,7 @@ public class ECGService {
     public static final int STATE_NONE = 0;        // doing nothing
 
     private static final int RawSize32 = 32;
-    private static final int RawBufferSize = 250;        //為32的倍數
+    private static final int RawBufferSize = 32;        //為32的倍數
     private final Handler mHandler;
 
     private int iRawData;            //讀入RawData計數
@@ -67,7 +65,7 @@ public class ECGService {
 //		if (D) Log.d(TAG, "DataHandler");
 
         int iDataEnd = -1;            //存放資訊結尾('\n')的指標在data中的位置
-        Log.d("8/30","Data Length:"+Data.length);
+
         for (int i = 0; i < Data.length; i++) {
             //若資訊為Raw=32,後面接到的32bytes 全為RawData
             if (iRawData < RawSize32) {
@@ -82,11 +80,17 @@ public class ECGService {
                     // Notice (A)
                     byte[] rawData = new byte[RawBufferSize];
                     System.arraycopy(Raw_Buffer, 0, rawData, 0, RawBufferSize);
-                    byte[] interpolatedData = linearInterpolation(rawData, 360);//將250個點擴增到360個點
+//                    int[] value = new int[rawData.length];
+//                    for (int k = 0; k < rawData.length; k++) {
+//                        value[k] = rawData[k] & 0xFF;
+//                    }
+//
+//                    byte[] byteArray = new byte[rawData.length];
+//                    for (int k = 0; k < rawData.length; k++) {
+//                        byteArray[k] = (byte) (value[k]);
+//                    }
 
-                    mStateService.runModel(interpolatedData);
-                    Log.d(TAG, "DataHandler 250rawData: " + Arrays.toString(rawData));
-                    Log.d(TAG, "DataHandler 360rawData: " + Arrays.toString(interpolatedData));
+//                    mStateService.runModel(rawData);
                     // Send the obtained bytes to the UI Activity
                     // arg1-> length, arg2-> -1, obj->buffer
                     mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)
@@ -148,35 +152,5 @@ public class ECGService {
 
         return R;
     }
-    //線性插植擴增點
-    private static byte[] linearInterpolation(byte[] data, int newLength) {
-        int[] intData = new int[data.length];
-        for (int i = 0; i < data.length; i++) {
-            intData[i] = data[i] & 0xFF; // Convert bytes to positive int values
-        }
-
-        int[] interpolatedIntData = new int[newLength];
-        float step = (float) (intData.length - 1) / (newLength - 1);
-
-        for (int i = 0; i < newLength; i++) {
-            int index = (int) (i * step);
-            float fraction = i * step - index;
-
-            if (index == intData.length - 1) {
-                interpolatedIntData[i] = intData[index];
-            } else {
-                int interpolatedValue = Math.round((1 - fraction) * intData[index] + fraction * intData[index + 1]);
-                interpolatedIntData[i] = interpolatedValue;
-            }
-        }
-
-        byte[] interpolatedByteData = new byte[newLength];
-        for (int i = 0; i < newLength; i++) {
-            interpolatedByteData[i] = (byte) interpolatedIntData[i];
-        }
-
-        return interpolatedByteData;
-    }
-
 
 }
