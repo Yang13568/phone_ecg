@@ -21,6 +21,7 @@ import android.widget.*
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
+import kotlinx.android.synthetic.main.fragment_family.*
 
 
 @SuppressLint("MissingPermission")
@@ -57,6 +58,7 @@ class FamilyFragment : Fragment() {
     private lateinit var mlv_device: ListView
     private lateinit var mStateText: TextView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
+    private var State_array = mutableListOf<String?>()
     private val REQUEST_BLUETOOTH_PERMISSION = 1
     private var isDeviceConnected = true
     private val handler = Handler()
@@ -386,11 +388,37 @@ class FamilyFragment : Fragment() {
                     4 -> "Q"
                     else -> null
                 }
+                State_array.add(toastMessage)
+                if (State_array.size > 15) {
+                    State_array.removeAt(0)
+                }
+                val frequencyMap = mutableMapOf<String, Int>()
 
+                // 统计每个字符串出现的次数
+                for (message in State_array) {
+                    if (message != null) {
+                        frequencyMap[message] = frequencyMap.getOrDefault(message, 0) + 1
+                    }
+                }
+                if (State_array.size > 14) {
+                    // 寻找出现次数最多的字符串
+                    var mostFrequentToast: String? = null
+                    var maxFrequency = 0
+
+                    for ((message, frequency) in frequencyMap) {
+                        if (frequency > maxFrequency) {
+                            maxFrequency = frequency
+                            mostFrequentToast = message
+                        }
+                    }
+                    mStateText.text = mostFrequentToast
+                }
+                else mStateText.text = "評斷中"
                 if (toastMessage != null) {
                     Log.d("StateService", "handleMessage: $heartType")
 //                    Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
-                    mStateText.text = toastMessage
+
+                    Log.d("StateService", "handleMessage: $State_array")
                 }
             }
 
