@@ -2,6 +2,7 @@ package com.example.test
 
 import android.content.Context
 import android.os.Handler
+import android.util.Log
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
@@ -68,6 +69,9 @@ class StateService(context: Context?, handler: Handler) {
 
         // 獲取輸出數據並執行 m 函式
         val outputData = outputTensor.floatArray
+        for(data in outputData){
+            Log.d("interLog", "DataHandler interpolatedData: $data")
+        }
         herttype = m(outputData)
 
         tflite.close()
@@ -83,8 +87,6 @@ class StateService(context: Context?, handler: Handler) {
         val inputTensor = TensorBuffer.createFixedSize(shape, DataType.FLOAT32)
         val inputBuffer = inputTensor.buffer
         inputBuffer.rewind()
-//        val inputData = data.toFloatArray()
-//        val byteinputData = floatArrayToByteArray(inputData)
         inputBuffer.put(data)
 
         return inputTensor
@@ -94,6 +96,4 @@ class StateService(context: Context?, handler: Handler) {
     private fun prepareOutputTensor(shape: IntArray): TensorBuffer {
         return TensorBuffer.createFixedSize(shape, DataType.FLOAT32)
     }
-
-
 }

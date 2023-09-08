@@ -59,6 +59,7 @@ class FamilyFragment : Fragment() {
     private lateinit var mStateText: TextView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
     private var State_array = mutableListOf<String?>()
+    private var frequencyMap = mutableMapOf<String, Int>()
     private val REQUEST_BLUETOOTH_PERMISSION = 1
     private var isDeviceConnected = true
     private val handler = Handler()
@@ -173,6 +174,7 @@ class FamilyFragment : Fragment() {
     }
 
 
+    @SuppressLint("MissingPermission")
     private fun scan() {
         if (mBluetoothAdapter.isDiscovering) {
             mBluetoothAdapter.cancelDiscovery()
@@ -214,6 +216,7 @@ class FamilyFragment : Fragment() {
         registerBluetoothReceiver()
     }
 
+    @SuppressLint("MissingPermission")
     override fun onStop() {
         super.onStop()
         if (mBluetoothAdapter != null) {
@@ -338,6 +341,7 @@ class FamilyFragment : Fragment() {
         requireContext().unregisterReceiver(mBluetoothReceiver)
     }
 
+    @SuppressLint("NewApi")
     private val mECGHandler = Handler(Handler.Callback { msg ->
         when (msg.what) {
             MESSAGE_RAW -> {
@@ -388,62 +392,43 @@ class FamilyFragment : Fragment() {
                     4 -> "Q"
                     else -> null
                 }
-                State_array.add(toastMessage)
+                Log.d("ToastService", "handleMessage: $heartType")
+                Log.d("ToastService", "handleMessage: $toastMessage")
+                if (toastMessage != null) {
+                    State_array.add(toastMessage)
+                }
                 if (State_array.size > 15) {
-                    State_array.removeAt(0)
+                    State_array.removeAt(0) // 移除列表中的第一個元素
                 }
-                val frequencyMap = mutableMapOf<String, Int>()
-
-                // 统计每个字符串出现的次数
-                for (message in State_array) {
-                    if (message != null) {
-                        frequencyMap[message] = frequencyMap.getOrDefault(message, 0) + 1
-                    }
-                }
-                if (State_array.size > 14) {
-                    // 寻找出现次数最多的字符串
-                    var mostFrequentToast: String? = null
-                    var maxFrequency = 0
-
-                    for ((message, frequency) in frequencyMap) {
-                        if (frequency > maxFrequency) {
-                            maxFrequency = frequency
-                            mostFrequentToast = message
+                if (State_array.size == 15) {
+                    frequencyMap.clear()
+                    for (message in State_array) {
+                        if (message != null) {
+                            frequencyMap[message] = frequencyMap.getOrDefault(message, 0) + 1
                         }
+                        var mostFrequentToast: String? = null
+                        var maxFrequency = 0
+
+                        for ((message, frequency) in frequencyMap) {
+                            if (frequency > maxFrequency) {
+                                maxFrequency = frequency
+                                mostFrequentToast = message
+                            }
+                        }
+                        mStateText.text = mostFrequentToast
+                        Log.d("StateService", "handleMessage: $frequencyMap")
                     }
-                    mStateText.text = mostFrequentToast
-                }
-                else mStateText.text = "評斷中"
+                } else mStateText.text = "評斷中"
                 if (toastMessage != null) {
                     Log.d("StateService", "handleMessage: $heartType")
 //                    Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
 
                     Log.d("StateService", "handleMessage: $State_array")
+//                    Log.d("StateService", "handleMessage: $frequencyMap")
                 }
             }
 
         }
         true
     })
-//    private val mStateHandler = Handler(Handler.Callback { msg ->
-//        when (msg.what) {
-//            STATE_TYPE -> {
-//                val heartType = msg.arg1
-//                Log.d("StateService", "handleMessage: $heartType")
-//                if (heartType == 0) {
-//                    Toast.makeText(requireContext(), "Normal", Toast.LENGTH_SHORT).show()
-//                } else if (heartType == 1) {
-//                    Toast.makeText(requireContext(), "S", Toast.LENGTH_SHORT).show()
-//                } else if (heartType == 2) {
-//                    Toast.makeText(requireContext(), "V", Toast.LENGTH_SHORT).show()
-//                } else if (heartType == 3) {
-//                    Toast.makeText(requireContext(), "F", Toast.LENGTH_SHORT).show()
-//                } else if (heartType == 4) {
-//                    Toast.makeText(requireContext(), "Q", Toast.LENGTH_SHORT).show()
-//                }
-//            }
-//        }
-//        true
-//    })
-
 }

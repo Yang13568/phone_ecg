@@ -85,20 +85,9 @@ public class ECGService {
                     // Notice (A)
                     byte[] rawData = new byte[RawBufferSize];
                     System.arraycopy(Raw_Buffer, 0, rawData, 0, RawBufferSize);
-//                    int[] value = new int[rawData.length];
-//                    for (int k = 0; k < rawData.length; k++) {
-//                        value[k] = rawData[k] & 0xFF;
-//                    }
-//
-//                    byte[] byteArray = new byte[rawData.length];
-//                    for (int k = 0; k < rawData.length; k++) {
-//                        byteArray[k] = (byte) (value[k]);
-//                    }
                     byte[] interpolatedData = linearInterpolation(rawData, 360);
+                    Log.d("DataInter", "DataHandler interpolatedData: " + Arrays.toString(interpolatedData));
                     mStateService.runModel(interpolatedData);
-
-                    Log.d(TAG, "DataHandler 250rawData: " + Arrays.toString(rawData));
-                    Log.d(TAG, "DataHandler 360rawData: " + Arrays.toString(interpolatedData));
                     // Send the obtained bytes to the UI Activity
                     // arg1-> length, arg2-> -1, obj->buffer
 //                    mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)
