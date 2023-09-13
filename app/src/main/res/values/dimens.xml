@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <resources>
-    <dimen name="Max_X_Axis">150dip</dimen>
-    <dimen name="Max_Y_Axis">220dip</dimen>
+    <dimen name="Max_X_Axis">300dip</dimen>
+    <dimen name="Max_Y_Axis">350dip</dimen>
 </resources>

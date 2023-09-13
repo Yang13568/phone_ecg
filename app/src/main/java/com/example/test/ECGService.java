@@ -17,22 +17,29 @@ public class ECGService {
     public static final int STATE_NONE = 0;        // doing nothing
 
     private static final int RawSize32 = 32;
-    private static final int RawBufferSize = 64;        //為32的倍數
+    private static final int RawBufferSize = 250;        //為32的倍數
+    private static final int DrawBufferSize = 16;
     private final Handler mHandler;
 
-    private int iRawData;            //讀入RawData計數
-    private int iRawBuffer;            //RawBuffer計數
+    private int iRawData;           //讀入RawData計數
+    private int iRawBuffer;         //RawBuffer計數
+    private int iDrawBuffer;        //DrawBuffer計數
     private int mState;
 
     private byte[] Info_Buffer;        //存放完整的資訊
-    private final byte[] Raw_Buffer = new byte[RawBufferSize];        //存放32bytes Raw Data
+    private final byte[] Raw_Buffer = new byte[RawBufferSize];        //存放250bytes Raw Data
+    private final byte[] Draw_Buffer = new byte[DrawBufferSize];        //存放32bytes Draw Data
 
+    private final StateService mStateService;
+
+    public static final int STATE_TYPE = 1;
 
     public ECGService(Context context, Handler handler) {
         mHandler = handler;
         iRawData = RawSize32;        //Raw Data 計數初始值設為全滿
         iRawBuffer = 0;
         Info_Buffer = new byte[0];
+        mStateService = new StateService(context, mHandler);
     }
 
     public void reset() {
@@ -67,21 +74,32 @@ public class ECGService {
             if (iRawData < RawSize32) {
                 Log.d(TAG, "DataHandler 在這裡: " + iRawBuffer);
                 Raw_Buffer[iRawBuffer] = Data[i];
+                Draw_Buffer[iDrawBuffer] = Data[i];
                 iRawData++;
                 iRawBuffer++;
+                iDrawBuffer++;
                 iDataEnd = i;
 
                 if (iRawBuffer == RawBufferSize) {
+
                     // Notice (A)
                     byte[] rawData = new byte[RawBufferSize];
                     System.arraycopy(Raw_Buffer, 0, rawData, 0, RawBufferSize);
-
+                    byte[] interpolatedData = linearInterpolation(rawData, 360);
+                    Log.d("DataInter", "DataHandler interpolatedData: " + Arrays.toString(interpolatedData));
+                    mStateService.runModel(interpolatedData);
                     // Send the obtained bytes to the UI Activity
                     // arg1-> length, arg2-> -1, obj->buffer
-                    mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)
-                            .sendToTarget();
-
+//                    mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)
+//                            .sendToTarget();
                     iRawBuffer = 0;
+                }
+                if (iDrawBuffer == DrawBufferSize) {
+                    byte[] rawData = new byte[DrawBufferSize];
+                    System.arraycopy(Draw_Buffer, 0, rawData, 0, DrawBufferSize);
+                    mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, DrawBufferSize, -1, rawData)
+                            .sendToTarget();
+                    iDrawBuffer = 0;
                 }
 
             }
@@ -139,4 +157,32 @@ public class ECGService {
         return R;
     }
 
+    public static byte[] linearInterpolation(byte[] data, int newLength) {
+        int[] intData = new int[data.length];
+        for (int i = 0; i < data.length; i++) {
+            intData[i] = data[i] & 0xFF; // Convert bytes to positive int values
+        }
+
+        int[] interpolatedIntData = new int[newLength];
+        float step = (float) (intData.length - 1) / (newLength - 1);
+
+        for (int i = 0; i < newLength; i++) {
+            int index = (int) (i * step);
+            float fraction = i * step - index;
+
+            if (index == intData.length - 1) {
+                interpolatedIntData[i] = intData[index];
+            } else {
+                int interpolatedValue = Math.round((1 - fraction) * intData[index] + fraction * intData[index + 1]);
+                interpolatedIntData[i] = interpolatedValue;
+            }
+        }
+
+        byte[] interpolatedByteData = new byte[newLength];
+        for (int i = 0; i < newLength; i++) {
+            interpolatedByteData[i] = (byte) interpolatedIntData[i];
+        }
+
+        return interpolatedByteData;
+    }
 }

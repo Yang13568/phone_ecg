@@ -21,6 +21,7 @@ import android.widget.*
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
+import kotlinx.android.synthetic.main.fragment_family.*
 
 
 @SuppressLint("MissingPermission")
@@ -44,6 +45,7 @@ class FamilyFragment : Fragment() {
         const val MESSAGE_INFO = 2
         const val MESSAGE_KY_STATE = 3
         const val KY_INFO = "KY_Info"
+        const val STATE_TYPE = 4
     }
 
     private val mDeviceList: MutableList<BluetoothDevice> = ArrayList()
@@ -54,7 +56,10 @@ class FamilyFragment : Fragment() {
     private lateinit var showListButton: Button
     private lateinit var mbtn_Scan: Button
     private lateinit var mlv_device: ListView
+    private lateinit var mStateText: TextView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
+    private var State_array = mutableListOf<String?>()
+    private var frequencyMap = mutableMapOf<String, Int>()
     private val REQUEST_BLUETOOTH_PERMISSION = 1
     private var isDeviceConnected = true
     private val handler = Handler()
@@ -103,6 +108,7 @@ class FamilyFragment : Fragment() {
         mIhrText = view.findViewById(R.id.IHR_Text)
         mTeText = view.findViewById(R.id.TE_Text)
         mbtn_Scan = view.findViewById(R.id.btn_scan)
+        mStateText = view.findViewById(R.id.state)
         mbtn_Scan.setOnClickListener {
             scan()
         }
@@ -168,6 +174,7 @@ class FamilyFragment : Fragment() {
     }
 
 
+    @SuppressLint("MissingPermission")
     private fun scan() {
         if (mBluetoothAdapter.isDiscovering) {
             mBluetoothAdapter.cancelDiscovery()
@@ -209,6 +216,7 @@ class FamilyFragment : Fragment() {
         registerBluetoothReceiver()
     }
 
+    @SuppressLint("MissingPermission")
     override fun onStop() {
         super.onStop()
         if (mBluetoothAdapter != null) {
@@ -250,9 +258,8 @@ class FamilyFragment : Fragment() {
 
             BluetoothService.MESSAGE_READ -> {
                 val readBuffer = msg.obj as ByteArray
-                val data = String(readBuffer, 0, msg.arg1)
-                Log.d("WhatReceive", "handleMessage:$data")
-
+//                val data = String(readBuffer, 0, msg.arg1)
+//                Log.d("WhatReceive", "handleMessage: " + readBuffer.size)
                 mECGService.DataHandler(readBuffer)
                 Log.d("BluetoothService", "handleMessage arg1: " + msg.arg1)
                 Log.d("BluetoothService", "handleMessage what: " + msg.what)
@@ -295,6 +302,7 @@ class FamilyFragment : Fragment() {
                 mChartView.ClearChart()
                 mIhrText.text = "0"
                 mTeText.text = "0.0"
+                mStateText.text = "--"
             }
         }
     }
@@ -333,14 +341,16 @@ class FamilyFragment : Fragment() {
         requireContext().unregisterReceiver(mBluetoothReceiver)
     }
 
+    @SuppressLint("NewApi")
     private val mECGHandler = Handler(Handler.Callback { msg ->
         when (msg.what) {
             MESSAGE_RAW -> {
                 val rawBuf = msg.obj as ByteArray
-                Log.d(
-                    "BluetoothServiceChart",
-                    "Received Data: ${rawBuf.joinToString(", ") { it.toString() }}"
-                )
+                Log.d("BluetoothServiceChart", "handleMessage: " + rawBuf.size)
+//                Log.d(
+//                    "BluetoothServiceChart",
+//                    "Received Data: ${rawBuf.joinToString(", ") { it.toString() }}"
+//                )
                 mChartView.Wave_Draw(rawBuf)
             }
 
@@ -372,8 +382,53 @@ class FamilyFragment : Fragment() {
             }
 
             MESSAGE_KY_STATE -> {}
+            STATE_TYPE -> {
+                val heartType = msg.arg1
+                val toastMessage = when (heartType) {
+                    0 -> "Normal"
+                    1 -> "S"
+                    2 -> "V"
+                    3 -> "F"
+                    4 -> "Q"
+                    else -> null
+                }
+                Log.d("ToastService", "handleMessage: $heartType")
+                Log.d("ToastService", "handleMessage: $toastMessage")
+                if (toastMessage != null) {
+                    State_array.add(toastMessage)
+                }
+                if (State_array.size > 15) {
+                    State_array.removeAt(0) // 移除列表中的第一個元素
+                }
+                if (State_array.size == 15) {
+                    frequencyMap.clear()
+                    for (message in State_array) {
+                        if (message != null) {
+                            frequencyMap[message] = frequencyMap.getOrDefault(message, 0) + 1
+                        }
+                        var mostFrequentToast: String? = null
+                        var maxFrequency = 0
+
+                        for ((message, frequency) in frequencyMap) {
+                            if (frequency > maxFrequency) {
+                                maxFrequency = frequency
+                                mostFrequentToast = message
+                            }
+                        }
+                        mStateText.text = mostFrequentToast
+                        Log.d("StateService", "handleMessage: $frequencyMap")
+                    }
+                } else mStateText.text = "評斷中"
+                if (toastMessage != null) {
+                    Log.d("StateService", "handleMessage: $heartType")
+//                    Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
+
+                    Log.d("StateService", "handleMessage: $State_array")
+//                    Log.d("StateService", "handleMessage: $frequencyMap")
+                }
+            }
+
         }
         true
     })
-
 }
