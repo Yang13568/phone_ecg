@@ -64,7 +64,6 @@ class HomeFragment : Fragment() {
         var phone = view.findViewById<TextView>(R.id.textView3)
         var address = view.findViewById<TextView>(R.id.textView4)
         var sub_btn = view.findViewById<Button>(R.id.ecg_sub)
-        var temp_btn = view.findViewById<Button>(R.id.temp)
         val db = FirebaseFirestore.getInstance()
         val ref = db.collection("USER")
         val query = ref.whereEqualTo("userEmail", email)
@@ -83,13 +82,10 @@ class HomeFragment : Fragment() {
             // 在此處處理查詢失敗的情況
             Log.d(TAG, "找不到此使用者")
         }
-        temp_btn.setOnClickListener() {
-            viewModel = ViewModelProvider(requireActivity()).get(MyViewModel::class.java)
-            if (email != null) {
-                viewModel.sharedData=email
-            };
-            Log.d("Firestore","送出");
-        }
+        viewModel = ViewModelProvider(requireActivity()).get(MyViewModel::class.java)
+        if (email != null) {
+            viewModel.sharedData=email
+        };
         //按下上傳按鈕
         sub_btn.setOnClickListener() {
             //處理CSV
