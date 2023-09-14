@@ -21,6 +21,7 @@ import android.widget.*
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.android.synthetic.main.fragment_family.*
 
 
@@ -30,7 +31,7 @@ class FamilyFragment : Fragment() {
     private lateinit var mBluetoothService: BluetoothService
     private lateinit var mECGService: ECGService
     private var delay = 0
-
+    val db = FirebaseFirestore.getInstance()
     companion object {
         const val MESSAGE_STATE_CHANGE = 1
         const val MESSAGE_DEVICE_NAME = 2
@@ -46,6 +47,7 @@ class FamilyFragment : Fragment() {
         const val MESSAGE_KY_STATE = 3
         const val KY_INFO = "KY_Info"
         const val STATE_TYPE = 4
+        const val MESSAGE_UPLOAD = 5
     }
 
     private val mDeviceList: MutableList<BluetoothDevice> = ArrayList()
@@ -58,6 +60,7 @@ class FamilyFragment : Fragment() {
     private lateinit var mlv_device: ListView
     private lateinit var mStateText: TextView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
+    var email = requireActivity().intent.getStringExtra("email")
     private var State_array = mutableListOf<String?>()
     private var frequencyMap = mutableMapOf<String, Int>()
     private val REQUEST_BLUETOOTH_PERMISSION = 1
@@ -90,7 +93,7 @@ class FamilyFragment : Fragment() {
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        Log.d("Firestore","mail:"+email)
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         if (mBluetoothAdapter == null) {
             Toast.makeText(requireContext(), "此裝置不支援藍芽", Toast.LENGTH_SHORT).show()
@@ -260,7 +263,7 @@ class FamilyFragment : Fragment() {
                 val readBuffer = msg.obj as ByteArray
 //                val data = String(readBuffer, 0, msg.arg1)
 //                Log.d("WhatReceive", "handleMessage: " + readBuffer.size)
-                mECGService.DataHandler(readBuffer)
+                mECGService.DataHandler(readBuffer,email)
                 Log.d("BluetoothService", "handleMessage arg1: " + msg.arg1)
                 Log.d("BluetoothService", "handleMessage what: " + msg.what)
             }
@@ -380,7 +383,34 @@ class FamilyFragment : Fragment() {
 //                    InfoText.append(info[0]+'='+info[1]+',')
                 }
             }
+            MESSAGE_UPLOAD -> {
+                val heartbeat = msg.obj as ArrayList<Float>
+                Thread {
+                    val data = hashMapOf(
+                        "heartbeat" to heartbeat
+                    )
 
+                    db.collection("USER")
+                        .whereEqualTo("userEmail", email)
+                        .get()
+                        .addOnSuccessListener { querySnapshot ->
+                            for (document in querySnapshot.documents) {
+                                val documentId = document.id
+                                // 在这里处理获取到的文件 ID
+                                Log.d("Firestore", "对应的 ID 为：$documentId")
+                                db.collection("USER")
+                                    .document(documentId)
+                                    .collection("Heartbeat_15s")
+                                    .add(data)
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            // 查询失败
+                            Log.e("Firestore", "查询文件失败：$e")
+                        }
+                    Log.d("Firestore", "Data: $data")
+                }.start()
+            }
             MESSAGE_KY_STATE -> {}
             STATE_TYPE -> {
                 val heartType = msg.arg1

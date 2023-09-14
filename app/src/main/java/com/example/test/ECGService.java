@@ -6,7 +6,22 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ECGService {
     // Debugging
@@ -17,18 +32,27 @@ public class ECGService {
     public static final int STATE_NONE = 0;        // doing nothing
 
     private static final int RawSize32 = 32;
-    private static final int RawBufferSize = 250;        //為32的倍數
-    private static final int DrawBufferSize = 16;
+    private static final int RawBufferSize = 250;        //每秒有250個點
+    private static final int DrawBufferSize = 16;        //畫圖
+    private static final int UploadBufferSize = 1250;        //每5秒上傳
+    private int uploadcounter = 0;//10000000000000000000000000000000000000000000000000000000000
     private final Handler mHandler;
 
     private int iRawData;           //讀入RawData計數
     private int iRawBuffer;         //RawBuffer計數
     private int iDrawBuffer;        //DrawBuffer計數
+    private int iUploadBuffer1;        //DrawBuffer計數
+    private int iUploadBuffer2;        //DrawBuffer計數
+    boolean buff1=true;
+    boolean buff2=false;
     private int mState;
 
     private byte[] Info_Buffer;        //存放完整的資訊
     private final byte[] Raw_Buffer = new byte[RawBufferSize];        //存放250bytes Raw Data
     private final byte[] Draw_Buffer = new byte[DrawBufferSize];        //存放32bytes Draw Data
+    //private final byte[] Upload_Buffer = new byte[UploadBufferSize];        //存放1250bytes Draw Data
+    private List<Float> Upload_Buffer1 = new ArrayList<>();  //會有1跟2是要讓他們輪流使用，留5秒上傳到資料庫
+    private List<Float> Upload_Buffer2 = new ArrayList<>();
 
     private final StateService mStateService;
 
@@ -38,6 +62,8 @@ public class ECGService {
         mHandler = handler;
         iRawData = RawSize32;        //Raw Data 計數初始值設為全滿
         iRawBuffer = 0;
+        iUploadBuffer1 = 0;
+        iUploadBuffer2 = 1249;
         Info_Buffer = new byte[0];
         mStateService = new StateService(context, mHandler);
     }
@@ -64,7 +90,7 @@ public class ECGService {
     }
 
 
-    public void DataHandler(byte[] Data) {
+    public void DataHandler(byte[] Data,String email) {
 //		if (D) Log.d(TAG, "DataHandler");
 
         int iDataEnd = -1;            //存放資訊結尾('\n')的指標在data中的位置
@@ -72,7 +98,22 @@ public class ECGService {
         for (int i = 0; i < Data.length; i++) {
             //若資訊為Raw=32,後面接到的32bytes 全為RawData
             if (iRawData < RawSize32) {
-                Log.d(TAG, "DataHandler 在這裡: " + iRawBuffer);
+                if (buff1){
+                    Upload_Buffer1.add((float)Data[i]);
+                    iUploadBuffer1++;
+                    if (iUploadBuffer1==UploadBufferSize){
+                        iUploadBuffer2=0;
+                        Upload_Buffer2.clear();
+                    }
+                }
+                else if (buff2){
+                    Upload_Buffer2.add((float)Data[i]);
+                    iUploadBuffer2++;
+                    if (iUploadBuffer2==UploadBufferSize){
+                        iUploadBuffer1=0;
+                        Upload_Buffer1.clear();
+                    }
+                }
                 Raw_Buffer[iRawBuffer] = Data[i];
                 Draw_Buffer[iDrawBuffer] = Data[i];
                 iRawData++;
@@ -101,7 +142,19 @@ public class ECGService {
                             .sendToTarget();
                     iDrawBuffer = 0;
                 }
-
+                if (((iUploadBuffer1 == UploadBufferSize&&buff1) ||(iUploadBuffer2 == UploadBufferSize&&buff2)) && uploadcounter <10){
+                    if (iUploadBuffer1 == UploadBufferSize&&buff1) {
+                        buff1=false;
+                        buff2=true;
+                        mHandler.obtainMessage(FamilyFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, Upload_Buffer1).sendToTarget();
+                        uploadcounter++; // 100000000000000000000000000000000000000000000000000000000
+                    }else if (iUploadBuffer2 == UploadBufferSize&&buff2){
+                        buff1=true;
+                        buff2=false;
+                        mHandler.obtainMessage(FamilyFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, Upload_Buffer2).sendToTarget();
+                        uploadcounter++; // 100000000000000000000000000000000000000000000000000000000
+                    }
+                }
             }
             //若字元為資訊結尾字元(0x0D)('\n')
             else if (Data[i] == 0x0D) {
@@ -185,4 +238,5 @@ public class ECGService {
 
         return interpolatedByteData;
     }
+
 }

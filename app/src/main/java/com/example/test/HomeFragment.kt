@@ -1,22 +1,25 @@
 package com.example.test
 
+import android.annotation.SuppressLint
 import android.content.ContentValues.TAG
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Message
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
-import androidx.fragment.app.Fragment
-import android.content.pm.PackageManager
-import android.util.Log
 import android.widget.Button
+import android.widget.TextView
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
+import androidx.fragment.app.Fragment
 import com.google.firebase.firestore.FirebaseFirestore
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import android.annotation.SuppressLint
-import android.os.Build
-import androidx.annotation.RequiresApi
 
 /**
  * A simple [Fragment] subclass.
@@ -57,6 +60,7 @@ class HomeFragment : Fragment() {
         var phone = view.findViewById<TextView>(R.id.textView3)
         var address = view.findViewById<TextView>(R.id.textView4)
         var sub_btn = view.findViewById<Button>(R.id.ecg_sub)
+        var temp_btn = view.findViewById<Button>(R.id.temp)
         val db = FirebaseFirestore.getInstance()
         val ref = db.collection("USER")
         val query = ref.whereEqualTo("userEmail", email)
@@ -75,7 +79,9 @@ class HomeFragment : Fragment() {
             // 在此處處理查詢失敗的情況
             Log.d(TAG, "找不到此使用者")
         }
-
+        temp_btn.setOnClickListener() {
+            Log.d("Firestore","送出");
+        }
         //按下上傳按鈕
         sub_btn.setOnClickListener() {
             //處理CSV
