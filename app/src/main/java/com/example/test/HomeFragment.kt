@@ -1,5 +1,6 @@
 package com.example.test
 
+import MyViewModel
 import android.annotation.SuppressLint
 import android.content.ContentValues.TAG
 import android.content.Intent
@@ -17,6 +18,7 @@ import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -33,6 +35,7 @@ class HomeFragment : Fragment() {
     private var mParam2: String? = null
     private var csvList = mutableListOf<List<Float>>()
     private val REQUEST_BLUETOOTH_PERMISSION = 1
+    private lateinit var viewModel: MyViewModel
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,6 +43,7 @@ class HomeFragment : Fragment() {
         if (arguments != null) {
             mParam1 = arguments!!.getString(ARG_PARAM1)
             mParam2 = arguments!!.getString(ARG_PARAM2)
+
         }
     }
 
@@ -80,6 +84,10 @@ class HomeFragment : Fragment() {
             Log.d(TAG, "找不到此使用者")
         }
         temp_btn.setOnClickListener() {
+            viewModel = ViewModelProvider(requireActivity()).get(MyViewModel::class.java)
+            if (email != null) {
+                viewModel.sharedData=email
+            };
             Log.d("Firestore","送出");
         }
         //按下上傳按鈕
