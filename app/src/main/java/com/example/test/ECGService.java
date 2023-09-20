@@ -32,7 +32,7 @@ public class ECGService {
     public static final int STATE_NONE = 0;        // doing nothing
 
     private static final int RawSize32 = 32;
-    private static final int RawBufferSize = 250;        //每秒有250個點
+    private static final int RawBufferSize = 1250;        //每秒有250個點
     private static final int DrawBufferSize = 16;        //畫圖
     private static final int UploadBufferSize = 1250;        //每5秒上傳
     private int uploadcounter = 0;//10000000000000000000000000000000000000000000000000000000000
@@ -120,21 +120,6 @@ public class ECGService {
                 iRawBuffer++;
                 iDrawBuffer++;
                 iDataEnd = i;
-
-                if (iRawBuffer == RawBufferSize) {
-
-                    // Notice (A)
-                    byte[] rawData = new byte[RawBufferSize];
-                    System.arraycopy(Raw_Buffer, 0, rawData, 0, RawBufferSize);
-                    byte[] interpolatedData = linearInterpolation(rawData, 360);
-                    Log.d("DataInter", "DataHandler interpolatedData: " + Arrays.toString(interpolatedData));
-                    mStateService.runModel(interpolatedData);
-                    // Send the obtained bytes to the UI Activity
-                    // arg1-> length, arg2-> -1, obj->buffer
-//                    mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, RawBufferSize, -1, rawData)
-//                            .sendToTarget();
-                    iRawBuffer = 0;
-                }
                 if (iDrawBuffer == DrawBufferSize) {
                     byte[] rawData = new byte[DrawBufferSize];
                     System.arraycopy(Draw_Buffer, 0, rawData, 0, DrawBufferSize);
@@ -142,17 +127,37 @@ public class ECGService {
                             .sendToTarget();
                     iDrawBuffer = 0;
                 }
-                if (((iUploadBuffer1 == UploadBufferSize&&buff1) ||(iUploadBuffer2 == UploadBufferSize&&buff2)) && uploadcounter <10){
+                if (((iUploadBuffer1 == UploadBufferSize&&buff1) ||(iUploadBuffer2 == UploadBufferSize&&buff2))){
                     if (iUploadBuffer1 == UploadBufferSize&&buff1) {
                         buff1=false;
                         buff2=true;
-                        mHandler.obtainMessage(FamilyFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, Upload_Buffer1).sendToTarget();
-                        uploadcounter++; // 100000000000000000000000000000000000000000000000000000000
+                        int[] statearr = new int[5];
+                        for (int count = 0,statecounter=0;count < 1250;count+=250) {
+                            byte[] rawData = new byte[RawBufferSize];
+                            System.arraycopy(Raw_Buffer, count, rawData, 0, 250);
+                            byte[] interpolatedData = linearInterpolation(rawData, 360);
+                            statearr[statecounter++] = mStateService.runModel(interpolatedData);
+                        }
+                        ArrayList<Object> dataList = new ArrayList<>();
+                        dataList.add(Upload_Buffer1);
+                        dataList.add(statearr);
+                        iRawBuffer = 0;
+                        mHandler.obtainMessage(FamilyFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, dataList).sendToTarget();
                     }else if (iUploadBuffer2 == UploadBufferSize&&buff2){
                         buff1=true;
                         buff2=false;
-                        mHandler.obtainMessage(FamilyFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, Upload_Buffer2).sendToTarget();
-                        uploadcounter++; // 100000000000000000000000000000000000000000000000000000000
+                        int[] statearr = new int[5];
+                        for (int count = 0;count < 1250;count+=250) {
+                            byte[] rawData = new byte[RawBufferSize];
+                            System.arraycopy(Raw_Buffer, count, rawData, 0, 250);
+                            byte[] interpolatedData = linearInterpolation(rawData, 360);
+                            statearr[((count+250)/250)-1] = mStateService.runModel(interpolatedData);
+                        }
+                        ArrayList<Object> dataList = new ArrayList<>();
+                        dataList.add(Upload_Buffer2);
+                        dataList.add(statearr);
+                        iRawBuffer = 0;
+                        mHandler.obtainMessage(FamilyFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, dataList).sendToTarget();
                     }
                 }
             }

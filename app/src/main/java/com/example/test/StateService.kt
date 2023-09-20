@@ -50,7 +50,7 @@ class StateService(context: Context?, handler: Handler) {
 //        return buffer.array()
 //    }
 
-    fun runModel(rawData: ByteArray) {
+    fun runModel(rawData: ByteArray):Int {
         var herttype = 0
 
         // 執行畫圖的 Runnable
@@ -75,8 +75,9 @@ class StateService(context: Context?, handler: Handler) {
         herttype = m(outputData)
 
         tflite.close()
-        mHandler!!.obtainMessage(FamilyFragment.STATE_TYPE, herttype, -1)
-            .sendToTarget()
+//        mHandler!!.obtainMessage(FamilyFragment.STATE_TYPE, herttype, -1)
+//            .sendToTarget()
+        return herttype;
     }
 
     // 創建並準備輸入張量

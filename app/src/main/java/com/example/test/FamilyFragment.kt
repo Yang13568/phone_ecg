@@ -23,7 +23,10 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.android.synthetic.main.fragment_family.*
 
 
@@ -118,6 +121,7 @@ class FamilyFragment : Fragment() {
         mTeText = view.findViewById(R.id.TE_Text)
         mbtn_Scan = view.findViewById(R.id.btn_scan)
         mStateText = view.findViewById(R.id.state)
+        mStateText.setText("等待連線")
         mbtn_Scan.setOnClickListener {
             scan()
         }
@@ -390,78 +394,170 @@ class FamilyFragment : Fragment() {
                 }
             }
             MESSAGE_UPLOAD -> {
-                val heartbeat = msg.obj as ArrayList<Float>
+                val rdata = msg.obj as ArrayList<Any>
+                val heartbeat = rdata[0]
+                val state = rdata[1] as IntArray
+                State_array.clear()
+                for (i in 0..4) {
+                    val toastMessage = when (state[i]) {
+                        0 -> "Normal"
+                        1 -> "S"
+                        2 -> "V"
+                        3 -> "F"
+                        4 -> "Q"
+                        else -> null
+                    }
+                    if (toastMessage != null) {
+                        State_array.add(toastMessage)
+                    }
+                }
+                frequencyMap.clear()
+                var mostFrequentToast: String? = null
+                var maxFrequency = 0
+                for (message in State_array) {
+                    if (message != null) {
+                        frequencyMap[message] = frequencyMap.getOrDefault(message, 0) + 1
+                    }
+
+
+                    for ((message, frequency) in frequencyMap) {
+                        if (frequency > maxFrequency) {
+                            maxFrequency = frequency
+                            mostFrequentToast = message
+                        }
+                    }
+                }
+                mStateText.text = mostFrequentToast
                 Thread {
                     val data = hashMapOf(
-                        "heartbeat" to heartbeat
+                        "heartbeat" to heartbeat,
+                        "state" to mostFrequentToast,
+                        "timestamp" to FieldValue.serverTimestamp()
                     )
-
                     db.collection("USER")
                         .whereEqualTo("userEmail", email)
                         .get()
                         .addOnSuccessListener { querySnapshot ->
                             for (document in querySnapshot.documents) {
                                 val documentId = document.id
-                                // 在这里处理获取到的文件 ID
-                                Log.d("Firestore", "对应的 ID 为：$documentId")
-                                db.collection("USER")
-                                    .document(documentId)
-                                    .collection("Heartbeat_15s")
-                                    .add(data)
+                                val userRef = db.collection("USER").document(documentId)
+
+                                // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
+                                userRef.collection("Heartbeat_15s")
+                                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                                    .get()
+                                    .addOnSuccessListener { querySnapshot ->
+                                        // 构建文档列表
+                                        val documents = mutableListOf<DocumentSnapshot>()
+                                        for (doc in querySnapshot.documents) {
+                                            documents.add(doc)
+                                        }
+
+                                        // 删除多余的文档
+                                        if (documents.size >= 4) {
+                                            val batch = db.batch()
+                                            for (i in 4 until documents.size) {
+                                                val docRef = userRef.collection("Heartbeat_15s").document(documents[i].id)
+                                                batch.delete(docRef)
+                                                Log.d("Firestore", "删除文档: $docRef")
+                                            }
+                                            // 执行批处理删除操作
+                                            batch.commit()
+                                        }
+
+                                        // 添加新文档
+                                        userRef.collection("Heartbeat_15s").add(data).addOnSuccessListener {
+                                            Log.d("Firestore", "添加新文档成功")
+                                        }.addOnFailureListener { e ->
+                                            // 添加新文档失败
+                                            Log.e("Firestore", "添加新文档失败：$e")
+                                        }
+                                    }
                             }
                         }
                         .addOnFailureListener { e ->
                             // 查询失败
                             Log.e("Firestore", "查询文件失败：$e")
                         }
-                    Log.d("Firestore", "Data: $data")
                 }.start()
             }
             MESSAGE_KY_STATE -> {}
             STATE_TYPE -> {
-                val heartType = msg.arg1
-                val toastMessage = when (heartType) {
-                    0 -> "Normal"
-                    1 -> "S"
-                    2 -> "V"
-                    3 -> "F"
-                    4 -> "Q"
-                    else -> null
-                }
-                Log.d("ToastService", "handleMessage: $heartType")
-                Log.d("ToastService", "handleMessage: $toastMessage")
-                if (toastMessage != null) {
-                    State_array.add(toastMessage)
-                }
-                if (State_array.size > 15) {
-                    State_array.removeAt(0) // 移除列表中的第一個元素
-                }
-                if (State_array.size == 15) {
-                    frequencyMap.clear()
-                    for (message in State_array) {
-                        if (message != null) {
-                            frequencyMap[message] = frequencyMap.getOrDefault(message, 0) + 1
-                        }
-                        var mostFrequentToast: String? = null
-                        var maxFrequency = 0
-
-                        for ((message, frequency) in frequencyMap) {
-                            if (frequency > maxFrequency) {
-                                maxFrequency = frequency
-                                mostFrequentToast = message
-                            }
-                        }
-                        mStateText.text = mostFrequentToast
-                        Log.d("StateService", "handleMessage: $frequencyMap")
-                    }
-                } else mStateText.text = "評斷中"
-                if (toastMessage != null) {
-                    Log.d("StateService", "handleMessage: $heartType")
-//                    Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
-
-                    Log.d("StateService", "handleMessage: $State_array")
-//                    Log.d("StateService", "handleMessage: $frequencyMap")
-                }
+//                val heartType = msg.arg1
+//                val toastMessage = when (heartType) {
+//                    0 -> "Normal"
+//                    1 -> "S"
+//                    2 -> "V"
+//                    3 -> "F"
+//                    4 -> "Q"
+//                    else -> null
+//                }
+//                Log.d("ToastService", "handleMessage: $heartType")
+//                Log.d("ToastService", "handleMessage: $toastMessage")
+//                if (toastMessage != null) {
+//                    State_array.add(toastMessage)
+//                }
+//                if (State_array.size > 15) {
+//                    State_array.removeAt(0) // 移除列表中的第一個元素
+//                }
+//                if (State_array.size == 15) {
+//                    frequencyMap.clear()
+//                    for (message in State_array) {
+//                        if (message != null) {
+//                            frequencyMap[message] = frequencyMap.getOrDefault(message, 0) + 1
+//                        }
+//                        var mostFrequentToast: String? = null
+//                        var maxFrequency = 0
+//
+//                        for ((message, frequency) in frequencyMap) {
+//                            if (frequency > maxFrequency) {
+//                                maxFrequency = frequency
+//                                mostFrequentToast = message
+//                            }
+//                        }
+//                        mStateText.text = mostFrequentToast
+//                        Log.d("StateService", "handleMessage: $frequencyMap")
+//                    }
+//                } else mStateText.text = "評斷中"
+//                if (toastMessage != null) {
+//                    Log.d("StateService", "handleMessage: $heartType")
+////                    Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
+//
+//                    Log.d("StateService", "handleMessage: $State_array")
+////                    Log.d("StateService", "handleMessage: $frequencyMap")
+//                }
+//                //從這
+//                if(State_array.size == 5){
+//                    var mostFrequentToast: String? = null
+//                    var maxFrequency = 0
+//                    for ((message, frequency) in frequencyMap) {
+//                        if (frequency > maxFrequency) {
+//                            maxFrequency = frequency
+//                            mostFrequentToast = message
+//                        }
+//                    }
+//                    db.collection("USER")
+//                        .whereEqualTo("userEmail", email)
+//                        .get()
+//                        .addOnSuccessListener { querySnapshot ->
+//                            for (document in querySnapshot.documents) {
+//                                val documentId = document.id
+//                                if (mostFrequentToast != null) {
+//                                    db.collection("USER")
+//                                        .document(documentId)
+//                                        .collection("Heartbeat_15s")
+//                                        .add(mostFrequentToast)
+//                                    Log.d("Firestore", "新增資料的判斷是:$mostFrequentToast")
+//                                    Log.d("Firestore","有哪些:$State_array")
+//                                }
+//                            }
+//                        }
+//                        .addOnFailureListener { e ->
+//                            // 查询失败
+//                            Log.e("Firestore", "查询文件失败：$e")
+//                        }
+//                }
+                //到這
             }
 
         }
