@@ -1,5 +1,6 @@
 package com.example.test
 
+import MyViewModel
 import android.Manifest
 import android.app.Activity.RESULT_OK
 import android.bluetooth.BluetoothAdapter
@@ -15,11 +16,15 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.TextView
+import android.widget.*
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import java.text.SimpleDateFormat
 import java.util.*
 
 
@@ -32,13 +37,8 @@ class RecordFragment : Fragment() {
     // TODO: Rename and change types of parameters
     private var mParam1: String? = null
     private var mParam2: String? = null
-    private val BLUETOOTH_PERMISSION_REQUEST_CODE = 100
-    private val BLUETOOTH_DEVICE_REQUEST_CODE = 101
-    private var adapter: BluetoothAdapter? = null
-    private var selectedBluetoothDevice: BluetoothDevice? = null
-    private var str:String?=null
-
-
+    private lateinit var viewModel: MyViewModel
+    private var mtextview: TextView? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (arguments != null) {
@@ -58,130 +58,54 @@ class RecordFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val btn_blue = view.findViewById<Button>(R.id.button2)
-        val btn_refresh = view.findViewById<Button>(R.id.button)
-        val bluetoothtext = view.findViewById<TextView>(R.id.textView)
+        viewModel = ViewModelProvider(requireActivity()).get(MyViewModel::class.java)
+        var email = viewModel.sharedData
+        val db = FirebaseFirestore.getInstance()
+        val documents = mutableListOf<DocumentSnapshot>()
+        val dataList = mutableListOf<String>()
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) // 你可以根据你的需求选择不同的日期时间格式
+        db.collection("USER")
+            .whereEqualTo("userEmail", email)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                for (document in querySnapshot.documents) {
+                    val documentId = document.id
+                    val userRef = db.collection("USER").document(documentId)
 
-        val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
-        val connectedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
-        var connectedDeviceName: String? = null
+                    // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
+                    userRef.collection("Record")
+                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .get()
+                        .addOnSuccessListener { querySnapshot ->
+                            // 构建文档列表
+                            for (doc in querySnapshot.documents) {
+                                documents.add(doc)
+                                val timestamp = doc.getTimestamp("timestamp")
+                                val state = doc.getString("state")
+                                if (timestamp != null) {
+                                    val date = timestamp.toDate()
+                                    val formattedDate = sdf.format(date)
 
-        if (connectedDevices != null) {
-            for (device in connectedDevices) {
-                val deviceState = bluetoothAdapter?.getProfileConnectionState(BluetoothProfile.HEADSET)
-                if (deviceState == BluetoothProfile.STATE_CONNECTED) {
-                    connectedDeviceName = device.name
-                    break
-                }
-            }
-        }
-
-        btn_blue.setOnClickListener {
-            requestBluetoothPermissions()
-            if (selectedBluetoothDevice != null) {
-                bluetoothtext.text = str
-                Log.d("TestTAG","change")
-            }
-            else Log.d("TestTag","not change")
-        }
-        btn_refresh.setOnClickListener{
-            bluetoothtext.text=connectedDeviceName
-        }
-    }
-
-    private fun requestBluetoothPermissions() {
-        val permissions = arrayOf(
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH,
-            Manifest.permission.BLUETOOTH_ADMIN
-        )
-
-        val permissionsToRequest = ArrayList<String>()
-
-        for (permission in permissions) {
-            if (ContextCompat.checkSelfPermission(
-                    requireContext(),
-                    permission
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(permission)
-            }
-        }
-
-        if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(
-                requireActivity(),
-                permissionsToRequest.toTypedArray(),
-                BLUETOOTH_PERMISSION_REQUEST_CODE
-            )
-        } else {
-            pairDevice()
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        if (requestCode == BLUETOOTH_PERMISSION_REQUEST_CODE) {
-            var allPermissionsGranted = true
-
-            for (result in grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    allPermissionsGranted = false
-                    break
+                                    val displayText = "$formattedDate - $state"
+                                    dataList.add(displayText)
+                                }
+                            }
+                            val adapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_list_item_1, dataList)
+                            val listView = view.findViewById<ListView>(R.id.listview)
+                            listView.adapter = adapter
+                            Log.d("Record123",""+documents.size)
+                        }
                 }
             }
 
-            if (allPermissionsGranted) {
-                pairDevice()
-            } else {
-                // 权限被拒绝
-            }
-        } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        }
     }
-    private val receiver: BroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent) {
-            val action = intent.action
-            Log.d("taggg", "" + action)
-            val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-            str = device?.name
-
-            try {
-                //回傳的選擇裝置進行配對
-                device?.createBond()
-            } catch (e: Exception) {
-                Log.e("CreateBondError", e.message!!)
-            }
-        }
-    }
-    private fun pairDevice() {
-        val bluetoothPicker = Intent("android.bluetooth.devicepicker.action.LAUNCH")
-        startActivityForResult(bluetoothPicker, BLUETOOTH_DEVICE_REQUEST_CODE)
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == BLUETOOTH_DEVICE_REQUEST_CODE && resultCode == RESULT_OK) {
-            val device: BluetoothDevice? = data?.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-            val deviceName: String? = device?.name
-            str = deviceName
-        }
-
-    }
-
     companion object {
         // TODO: Rename parameter arguments, choose names that match
         // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
         private const val ARG_PARAM1 = "param1"
         private const val ARG_PARAM2 = "param2"
         /**
-         * Use this factory method to create a new instance of
+         * Use this factory method to create a new instance oftaskkill /f /t
          * this fragment using the provided parameters.
          *
          * @param param1 Parameter 1.
@@ -198,4 +122,9 @@ class RecordFragment : Fragment() {
             return fragment
         }
     }
+    data class MyData(
+        val firstString: String? = null,
+        val secondString: String? = null
+    )
+
 }

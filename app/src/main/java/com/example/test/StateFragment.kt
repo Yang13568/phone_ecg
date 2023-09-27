@@ -1,311 +1,499 @@
 package com.example.test
 
+import MyViewModel
 import android.annotation.SuppressLint
-import android.content.ContentValues
+import android.app.AlertDialog
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.os.Looper
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
+import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
-import com.firebase.ui.auth.AuthUI.getApplicationContext
-import com.github.mikephil.charting.charts.LineChart
-import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
-import com.google.android.material.tabs.TabLayout.Tab
+import androidx.lifecycle.ViewModelProvider
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import org.tensorflow.lite.DataType
-import org.tensorflow.lite.Interpreter
-import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
-import java.io.*
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.nio.channels.FileChannel
-import java.util.*
-import kotlin.concurrent.schedule
+import com.google.firebase.firestore.Query
+import kotlinx.android.synthetic.main.fragment_family.*
 
 
-/**
- * A simple [Fragment] subclass.
- * Use the [StateFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
+@SuppressLint("MissingPermission")
 class StateFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private lateinit var linechart: LineChart
-    private var mParam1: String? = null
-    private var mParam2: String? = null
-    private var timer: Timer? = null
-    private var csvList = mutableListOf<List<Float>>()
-    private var anslist = mutableListOf<Float>()
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        if (arguments != null) {
-            mParam1 = arguments!!.getString(ARG_PARAM1)
-            mParam2 = arguments!!.getString(ARG_PARAM2)
+    private lateinit var mBluetoothAdapter: BluetoothAdapter
+    private lateinit var mBluetoothService: BluetoothService
+    private lateinit var mECGService: ECGService
+    private var delay = 0
+    val db = FirebaseFirestore.getInstance()
+    companion object {
+        const val MESSAGE_STATE_CHANGE = 1
+        const val MESSAGE_DEVICE_NAME = 2
+        const val MESSAGE_TOAST = 3
+        const val MESSAGE_READ = 4
+        const val MESSAGE_WRITE = 5
+        const val DEVICE_NAME = "device_name"
+        const val TOAST = "toast_message"
+        private const val TAG = "BluetoothService"
+        private const val REQUEST_ENABLE_BT = 1
+        const val MESSAGE_RAW = 1
+        const val MESSAGE_INFO = 2
+        const val MESSAGE_KY_STATE = 3
+        const val KY_INFO = "KY_Info"
+        const val STATE_TYPE = 4
+        const val MESSAGE_UPLOAD = 5
+    }
+
+    private val mDeviceList: MutableList<BluetoothDevice> = ArrayList()
+    private lateinit var mChartView: ChartView
+    private lateinit var mStatusTextView: TextView
+    private lateinit var mIhrText: TextView
+    private lateinit var mTeText: TextView
+    private lateinit var showListButton: Button
+    private lateinit var mbtn_Scan: Button
+    private lateinit var mlv_device: ListView
+    private lateinit var mStateText: TextView
+    private lateinit var mBTArrayAdapter: ArrayAdapter<String>
+    private lateinit var viewModel: MyViewModel
+
+    private lateinit var email :String
+    private var State_array = mutableListOf<String?>()
+    private var frequencyMap = mutableMapOf<String, Int>()
+    private val REQUEST_BLUETOOTH_PERMISSION = 1
+    private var isDeviceConnected = true
+    private val handler = Handler()
+    private val runnable = object : Runnable {
+        override fun run() {
+            update()
+            handler.postDelayed(this, 1)
+        }
+
+        private fun update() {
+            delay = (delay + 1) % 1000
+            if (delay == 0 || delay == 500) {
+                val cmd: ByteArray = byteArrayOf(0x0D)
+                sendCmd(cmd)
+                val cmd2: ByteArray = byteArrayOf('W'.toByte(), '+'.toByte(), 0x0D)
+                sendCmd(cmd2)
+            }
         }
     }
 
+    @SuppressLint("NewApi")
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_state, container, false)
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        // 找到按鈕 bluetooth_btn
-        val bluetoothBtn = view.findViewById<Button>(R.id.bluetooth_btn)
-        val testBtn = view.findViewById<Button>(R.id.button2)
-        val typetextView = view.findViewById<TextView>(R.id.textView11)
-        val accuracy_textview = view.findViewById<TextView>(R.id.textView5)
-        val linechart = view.findViewById<LineChart>(R.id.linechart)
-        var data_number: Int = 0
-        // 藍芽按鈕點擊
-        bluetoothBtn.setOnClickListener {
-            getEcgfromdatabase()
+        viewModel = ViewModelProvider(requireActivity()).get(MyViewModel::class.java)
+        email = viewModel.sharedData
+        Log.d("Firestore","mail:"+email)
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+        if (mBluetoothAdapter == null) {
+            Toast.makeText(requireContext(), "此裝置不支援藍芽", Toast.LENGTH_SHORT).show()
+            return
         }
-        //測資按鈕點擊
-        var l = 0
-        var st = 0
-        var correct_num = 0
-        var sum_num = 0
-        testBtn.setOnClickListener() {
+        if (!mBluetoothAdapter.isEnabled) {
+            val enableIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            startActivityForResult(enableIntent, REQUEST_ENABLE_BT)
+        }
+        mStatusTextView = view.findViewById(R.id.textViewStatus)
 
-            if (st == 0) {
-                timer = Timer()
-                timer?.schedule(0, 100) {
-                    activity?.runOnUiThread {
-                        val herttypr = runmodel(l, linechart)
-                        if (herttypr == 0) {
-                            typetextView.setText("Normal")
-                        } else if (herttypr == 1) {
-                            typetextView.setText("S")
-                        } else if (herttypr == 2) {
-                            typetextView.setText("V")
-                        } else if (herttypr == 3) {
-                            typetextView.setText("F")
-                        } else if (herttypr == 4) {
-                            typetextView.setText("Q")
-                        }
-                        sum_num++
-                        if (herttypr == anslist[l].toInt()) {
-                            correct_num++
-                        }
-                        val str = "準確率:" + correct_num + "/" + sum_num
-                        accuracy_textview.setText(str)
-                    }
-                    if (l < csvList.size - 1) l++
-                    else {
-                        timer?.cancel()
-                    }
+        mlv_device = view.findViewById(R.id.lv_device)
+        showListButton = view.findViewById(R.id.buttonShowList)
+        showListButton.setOnClickListener { showDeviceListDialog() }
+        mIhrText = view.findViewById(R.id.IHR_Text)
+        mTeText = view.findViewById(R.id.TE_Text)
+        mbtn_Scan = view.findViewById(R.id.btn_scan)
+        mStateText = view.findViewById(R.id.state)
+        mStateText.setText("等待連線")
+        mbtn_Scan.setOnClickListener {
+            scan()
+        }
+        mBTArrayAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1)
+        mlv_device.adapter = mBTArrayAdapter
+
+        mChartView = view.findViewById(R.id.Chart)
+        val displayMetrics = DisplayMetrics()
+        requireActivity().windowManager.defaultDisplay.getMetrics(displayMetrics)
+        val screenWidth = displayMetrics.widthPixels
+        mChartView.setX_Axis(screenWidth)
+        setupBluetoothService()
+        handler.postDelayed(runnable, 1);
+    }
+
+    private fun resetECGService() {
+        val cmd: ByteArray = byteArrayOf('R'.code.toByte(), 'S'.code.toByte(), 0x0D)
+        sendCmd(cmd)
+        mECGService.reset()
+        mChartView.ClearChart()
+    }
+
+    private fun sendCmd(Cmd: ByteArray) {
+        // Check that there's actually something to send
+        if (Cmd.isNotEmpty()) {
+            // Get the message bytes and tell the BluetoothChatService to write
+            mBluetoothService.write(Cmd)
+        }
+    }
+
+    private fun showDeviceListDialog() {
+        val builder = AlertDialog.Builder(requireContext())
+        mDeviceList.clear()
+        builder.setTitle("選擇藍芽裝置")
+        mDeviceList.addAll(mBluetoothAdapter.bondedDevices)
+        val deviceNames = arrayOfNulls<String>(mDeviceList.size)
+        // Check if the BLUETOOTH_CONNECT permission is granted
+        if (ActivityCompat.checkSelfPermission(
+                requireContext(), android.Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            if (deviceNames.isNotEmpty()) {
+                Log.d(TAG, "有再收尋")
+
+                for (i in mDeviceList.indices) {
+                    deviceNames[i] = mDeviceList[i].name
                 }
-
-                st = 1
-                testBtn.text = "停止"
+                builder.setItems(deviceNames) { _, which ->
+                    val selectedDevice = mDeviceList[which]
+                    mBluetoothService.connect(selectedDevice)
+                }
+                builder.show()
             } else {
-                st = 0
-                testBtn.text = "開始"
-                timer?.cancel()
-                timer?.purge()
+                Toast.makeText(requireContext(), "沒有以配對的藍芽裝置", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            // Handle permission not granted here if needed
+            // For example, show a message or request permission again
+            // or take any appropriate action
+            // For now, I'm just printing a log message
+            Log.d(TAG, "BLUETOOTH_CONNECT permission not granted.")
+        }
+    }
+
+
+    @SuppressLint("MissingPermission")
+    private fun scan() {
+        if (mBluetoothAdapter.isDiscovering) {
+            mBluetoothAdapter.cancelDiscovery()
+            Toast.makeText(requireContext(), "Scan Stopped", Toast.LENGTH_SHORT).show()
+        } else {
+            if (mBluetoothAdapter.isEnabled) {
+                mBTArrayAdapter.clear()
+                requireContext().registerReceiver(
+                    mBluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND)
+                )
+                mBluetoothAdapter.startDiscovery()
+                Toast.makeText(requireContext(), "Discovery Started", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), "Bluetooth Not On", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    companion object {
-        // TODO: Rename parameter arguments, choose names that match
-        // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-        private const val ARG_PARAM1 = "param1"
-        private const val ARG_PARAM2 = "param2"
 
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment StateFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        fun newInstance(param1: String?, param2: String?): StateFragment {
-            val fragment = StateFragment()
-            val args = Bundle()
-            args.putString(ARG_PARAM1, param1)
-            args.putString(ARG_PARAM2, param2)
-            fragment.arguments = args
-            return fragment
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun checkBluetoothPermissions() {
+        if (ActivityCompat.checkSelfPermission(
+                requireContext(), android.Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(
+                requireContext(), android.Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                requireActivity(), arrayOf(
+                    android.Manifest.permission.BLUETOOTH_CONNECT,
+                    android.Manifest.permission.BLUETOOTH_SCAN
+                ), REQUEST_BLUETOOTH_PERMISSION
+            )
         }
     }
 
-    private fun loadModelFile(modelFilePath: String, context: Context): ByteBuffer {
-        val assetManager = context.assets
-        val fileDescriptor = assetManager.openFd(modelFilePath)
-        val inputStream = FileInputStream(fileDescriptor.fileDescriptor)
-        val fileChannel = inputStream.channel
-        val startOffset = fileDescriptor.startOffset
-        val declaredLength = fileDescriptor.declaredLength
-        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
+    override fun onStart() {
+        super.onStart()
+        registerBluetoothReceiver()
     }
 
-    //找最大值
-    private fun m(array: FloatArray): Int {
-        var maxindex = -1
-        var maxnum = 0.0F
-        for (i in 0..4) {
-            if (array[i] > maxnum) {
-                maxnum = array[i]
-                maxindex = i
+    @SuppressLint("MissingPermission")
+    override fun onStop() {
+        super.onStop()
+        if (mBluetoothAdapter != null) {
+            mBluetoothAdapter.cancelDiscovery()
+        }
+        unregisterBluetoothReceiver()
+    }
+
+    private fun setupBluetoothService() {
+        mBluetoothService = BluetoothService(requireContext(), mHandler)
+        mECGService = ECGService(requireContext(), mECGHandler)
+        mBluetoothService.start()
+    }
+
+
+    private val mHandler = Handler(Handler.Callback { msg ->
+        when (msg.what) {
+            BluetoothService.STATE_CONNECTED -> {
+                mStatusTextView.text = "Bluetooth Status:已連線"
+                Log.d("BluetoothService", "handleMessage: " + msg.arg1)
+//                resetECGService()
             }
-        }
-        return maxindex
-    }
 
-    fun floatArrayToByteArray(inputData: FloatArray): ByteArray {
-        val buffer = ByteBuffer.allocate(inputData.size * 4) // 每个浮点数占用4个字节
-        buffer.order(ByteOrder.nativeOrder())
-        for (value in inputData) {
-            buffer.putFloat(value)
-        }
-        return buffer.array()
-    }
+            BluetoothService.STATE_CONNECTING -> {
+                mStatusTextView.text = "Bluetooth Status:連線中..."
+                Log.d("BluetoothService", "handleMessage: " + msg.arg1)
+            }
 
+            BluetoothService.STATE_LISTEN -> {
+                mStatusTextView.text = "Bluetooth Status:收尋中..."
+                Log.d("BluetoothService", "handleMessage: " + msg.arg1)
+                handleBluetoothState(msg.arg1)
+            }
 
-    fun runmodel(data_number: Int, linechart: LineChart): Int {
-        var herttype = 0
-        //讀csv檔
+            BluetoothService.STATE_NONE -> {
+                mStatusTextView.text = "Bluetooth Status:未連線"
+                Log.d("BluetoothService", "handleMessage: " + msg.arg1)
+            }
 
-//        csv的讀取
-//        val inputStream = resources.openRawResource(R.raw.mitdb_360_sample)
-//        val reader = BufferedReader(InputStreamReader(inputStream))
-//        reader.use {
-//            var line = it.readLine() // 跳過首行標題
-//            while (line != null) {
-//                val row = line.split(",") // 以逗號為分隔符號切割每行
-//                val floatList = row.map { it.toFloat() }
-//                csvList.add(floatList)
-//                line = it.readLine()
-//            }
-//        }
-        linechart.apply {
-            setTouchEnabled(false)
-            setPinchZoom(false)
-            description.isEnabled = false
-            legend.isEnabled = false
-            xAxis.isEnabled = false
-            axisLeft.isEnabled = false
-            axisRight.isEnabled = false
-        }
-        drawChart(data_number, linechart)
-//畫圖
+            BluetoothService.MESSAGE_READ -> {
+                val readBuffer = msg.obj as ByteArray
+//                val data = String(readBuffer, 0, msg.arg1)
+//                Log.d("WhatReceive", "handleMessage: " + readBuffer.size)
+                mECGService.DataHandler(readBuffer,email)
+                Log.d("BluetoothService", "handleMessage arg1: " + msg.arg1)
+                Log.d("BluetoothService", "handleMessage what: " + msg.what)
+            }
 
-//        val data = csvList[data_number].toFloatArray()
-//        val ecgView = EcgView(requireContext(), data)
-//        val ecg = view?.findViewById<ImageView>(R.id.imageView3)
-//        val bitmap = ecgView.toBitmap()
-//        if (ecg != null) {
-//            ecg.setImageBitmap(bitmap)
-//        }
-
-        // 執行畫圖的 Runnable
-        val tflite = Interpreter(loadModelFile("model_9532.tflite", requireContext()), null)
-
-// 假设模型的输入为长度为 784 的向量，输出为长度为 10 的向量
-        val inputShape = intArrayOf(1, 360) // 输入张量的形状
-        val outputShape = intArrayOf(1, 5) // 输出张量的形状
-
-// 创建输入张量
-        val inputTensor = TensorBuffer.createFixedSize(inputShape, DataType.FLOAT32) // 创建指定形状的张量缓冲区
-        val inputBuffer = inputTensor.buffer // 获取底层缓冲区
-
-        inputBuffer.rewind() // 将缓冲区指针重置为起始位置
-// 将一维数据加载到输入张量
-        val inputData = csvList[data_number].toFloatArray()
-        val byteinputData = floatArrayToByteArray(inputData)
-// 将 inputData 数组中的数据复制到 inputBuffer 缓冲区中
-        //inputData.forEachIndexed { index, value -> inputBuffer.putFloat(index, value) }
-        inputBuffer.put(byteinputData)
-// 创建输出张量
-        val outputTensor =
-            TensorBuffer.createFixedSize(outputShape, DataType.FLOAT32) // 创建指定形状的张量缓冲区
-        tflite.run(inputTensor.buffer, outputTensor.buffer)
-        val outputData = outputTensor.floatArray
-        for (i in 0..4) {
-            println(outputData[i])
-        }
-        herttype = m(outputData)
-        tflite.close()
-        return herttype
-    }
-
-    private fun drawChart(index: Int, linechart: LineChart) {
-        if (csvList.isNotEmpty()) {
-            val lineDataSet = LineDataSet(getData(index), "My Data")
-            lineDataSet.color = Color.GREEN
-            lineDataSet.valueTextColor = Color.RED
-            lineDataSet.setDrawCircles(false)
-            val lineData = LineData(lineDataSet)
-            linechart.data = lineData
-            linechart.animateXY(4000, 0)
-        }
-    }
-
-    // 讀取 csvList 裡指定索引的資料並回傳一個 Entry 清單
-    private fun getData(index: Int): ArrayList<Entry> {
-        val data = ArrayList<Entry>()
-        val row = csvList[index]
-        for (i in row.indices) {
-            data.add(Entry(i.toFloat(), row[i]))
-        }
-        return data
-    }
-
-    //從資料庫抓所有心跳
-    @SuppressLint("RestrictedApi")
-    private fun getEcgfromdatabase() {
-        val email = requireActivity().intent.getStringExtra("email")
-        val db = FirebaseFirestore.getInstance()
-        val ref = db.collection("USER")
-        val query = ref.whereEqualTo("userEmail", email)
-        var count = 0
-        query.get().addOnSuccessListener { documents ->
-            for (document in documents) {
-                // 取得 "Ecg_Data" 集合的參考
-                val ecgDataRef = document.reference.collection("Ecg_Data")
-
-                // 讀取 "Ecg_Data" 集合中的文件資料
-                ecgDataRef.get().addOnSuccessListener { ecgDataQuerySnapshot ->
-                    for (ecgDataDocument in ecgDataQuerySnapshot.documents) {
-                        val ecgData = ecgDataDocument.data // 取得每個文件的資料
-                        val ecgDataList = ecgData?.get("ecgData") as List<Float>
-                        val newData = ecgDataList.subList(0, 360)
-                        val data361 = ecgDataList[360]
-                        Log.d("DEBUG", "ans: " + data361)
-                        anslist.add(data361)
-                        // 將 ecgDataList 添加到 csvList 中
-                        csvList.add(newData)
-                    }
+            BluetoothService.MESSAGE_DEVICE_NAME -> {
+                if (isDeviceConnected) {
+                    val connectedDeviceName = msg.data.getString(BluetoothService.DEVICE_NAME)
+                    Log.d("check_state", "connected:重複執行")
+                    Toast.makeText(
+                        requireContext(), "已連線至 $connectedDeviceName", Toast.LENGTH_SHORT
+                    ).show()
+                    isDeviceConnected = false
                 }
             }
-            val toast = Toast.makeText(
-                getApplicationContext(),
-                "存取完畢:" + csvList.size.toString(),
-                Toast.LENGTH_SHORT
-            )
-            toast.show()
-            Log.d("DEBUG", "Data added to csvList: ${csvList.size}")
-        }
 
+            BluetoothService.MESSAGE_TOAST -> {
+                val toastMessage = msg.data.getString(BluetoothService.TOAST)
+                Toast.makeText(requireContext(), toastMessage, Toast.LENGTH_SHORT).show()
+            }
+        }
+        true
+    })
+    private val mBluetoothReceiver = object : BroadcastReceiver() {
+        @SuppressLint("SetTextI18n", "MissingPermission")
+        override fun onReceive(context: Context?, intent: Intent) {
+            Log.d("BluetoothAdapter", "開始搜尋")
+            val action = intent.action
+            if (BluetoothDevice.ACTION_FOUND == action) {
+                val device =
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice?
+                mBTArrayAdapter.add("${device?.name}\n${device?.address}")
+                mBTArrayAdapter.notifyDataSetChanged()
+                if (mBTArrayAdapter.getItem(0) != null) Log.d("BluetoothAdapter", "有東西")
+                else Log.d("BluetoothAdapter", "沒東西")
+            }
+            if (BluetoothDevice.ACTION_ACL_DISCONNECTED == action) {
+                isDeviceConnected = true
+                mStatusTextView.text = "Bluetooth Status:連線中斷"
+                mChartView.ClearChart()
+                mIhrText.text = "0"
+                mTeText.text = "0.0"
+                mStateText.text = "--"
+            }
+        }
     }
+
+    private fun handleBluetoothState(state: Int) {
+        Log.d(TAG, "handleBluetoothState: State = $state")
+        when (state) {
+            BluetoothService.STATE_CONNECTED -> {
+                mStatusTextView.text = "Bluetooth Status:已連線"
+                Log.d("BluetoothService", "handleBluetoothState: Connected")
+            }
+
+            BluetoothService.STATE_CONNECTING -> {
+                mStatusTextView.text = "Bluetooth Status:連線中..."
+                Log.d("BluetoothService", "handleBluetoothState: Connecting")
+            }
+
+            BluetoothService.STATE_LISTEN -> {
+                mStatusTextView.text = "Bluetooth Status:收尋中..."
+                Log.d("BluetoothService", "handleBluetoothState: Listen")
+            }
+
+            BluetoothService.STATE_NONE -> {
+                mStatusTextView.text = "Bluetooth Status:未連線"
+                Log.d("BluetoothService", "handleBluetoothState: None")
+            }
+        }
+    }
+
+    private fun registerBluetoothReceiver() {
+        val filter = IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+        requireContext().registerReceiver(mBluetoothReceiver, filter)
+    }
+
+    private fun unregisterBluetoothReceiver() {
+        requireContext().unregisterReceiver(mBluetoothReceiver)
+    }
+
+    @SuppressLint("NewApi")
+    private val mECGHandler = Handler(Handler.Callback { msg ->
+        when (msg.what) {
+            MESSAGE_RAW -> {
+                val rawBuf = msg.obj as ByteArray
+                Log.d("BluetoothServiceChart", "handleMessage: " + rawBuf.size)
+//                Log.d(
+//                    "BluetoothServiceChart",
+//                    "Received Data: ${rawBuf.joinToString(", ") { it.toString() }}"
+//                )
+                mChartView.Wave_Draw(rawBuf)
+            }
+
+            MESSAGE_INFO -> {
+                val info: List<String> = msg.data.getString(KY_INFO)!!.split("=")
+                if (info[0] == "IHR") {
+                    val iHr = info[1].toInt()
+                    mIhrText.text = iHr.toString()
+                } else if (info[0] == "TE" || info[0] == "VER") {
+                    // Log.d(TAG, "TE_Data_In")
+                    val part1 = info[1].substring(0, 3)
+                    try {
+                        val tmp1 = (part1.toDouble() / 10) - 4.0
+                        var c = tmp1.toString().split("00").toTypedArray()
+                        c = c[0].split("99").toTypedArray()
+                        if (tmp1 < 0)
+                            mTeText.text = "--"
+                        if (tmp1 >= 0)
+                            mTeText.text = c[0]
+                    } catch (e: Exception) {
+                        // Handle exception
+                    }
+                } else {
+                    if (info[0] == "HR") {
+//                        InfoText.setText("")
+                    }
+//                    InfoText.append(info[0]+'='+info[1]+',')
+                }
+            }
+            MESSAGE_UPLOAD -> {
+                val rdata = msg.obj as ArrayList<Any>
+                val heartbeat = rdata[0]
+                val state = rdata[1] as IntArray
+                State_array.clear()
+                for (i in 0..4) {
+                    val toastMessage = when (state[i]) {
+                        0 -> "Normal"
+                        1 -> "S"
+                        2 -> "V"
+                        3 -> "F"
+                        4 -> "Q"
+                        else -> null
+                    }
+                    if (toastMessage != null) {
+                        State_array.add(toastMessage)
+                    }
+                }
+                frequencyMap.clear()
+                var mostFrequentToast: String? = null
+                var maxFrequency = 0
+                for (message in State_array) {
+                    if (message != null) {
+                        frequencyMap[message] = frequencyMap.getOrDefault(message, 0) + 1
+                    }
+
+
+                    for ((message, frequency) in frequencyMap) {
+                        if (frequency > maxFrequency) {
+                            maxFrequency = frequency
+                            mostFrequentToast = message
+                        }
+                    }
+                }
+                mStateText.text = mostFrequentToast
+                Thread {
+                    val data = hashMapOf(
+                        "heartbeat" to heartbeat,
+                        "state" to mostFrequentToast,
+                        "timestamp" to FieldValue.serverTimestamp()
+                    )
+                    val record_data = hashMapOf(
+                        "state" to mostFrequentToast,
+                        "timestamp" to FieldValue.serverTimestamp()
+                    )
+                    db.collection("USER")
+                        .whereEqualTo("userEmail", email)
+                        .get()
+                        .addOnSuccessListener { querySnapshot ->
+                            for (document in querySnapshot.documents) {
+                                val documentId = document.id
+                                val userRef = db.collection("USER").document(documentId)
+
+                                // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
+                                userRef.collection("Heartbeat_15s")
+                                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                                    .get()
+                                    .addOnSuccessListener { querySnapshot ->
+                                        // 构建文档列表
+                                        val documents = mutableListOf<DocumentSnapshot>()
+                                        for (doc in querySnapshot.documents) {
+                                            documents.add(doc)
+                                        }
+
+                                        // 删除多余的文档
+                                        if (documents.size >= 4) {
+                                            val batch = db.batch()
+                                            for (i in 4 until documents.size) {
+                                                val docRef = userRef.collection("Heartbeat_15s").document(documents[i].id)
+                                                batch.delete(docRef)
+                                                Log.d("Firestore", "删除文档: $docRef")
+                                            }
+                                            // 执行批处理删除操作
+                                            batch.commit()
+                                        }
+
+                                        // 添加新文档
+                                        userRef.collection("Heartbeat_15s").add(data).addOnSuccessListener {
+                                            Log.d("Firestore", "心跳添加成功")
+                                        }.addOnFailureListener { e ->
+                                            // 添加新文档失败
+                                            Log.e("Firestore", "心跳添加失败：$e")
+                                        }
+                                        userRef.collection("Record").add(record_data).addOnSuccessListener {
+                                            Log.d("Firestore","紀錄添加成功")
+                                        }.addOnFailureListener{ e ->
+                                            Log.d("Firestore","紀錄添加失敗:$e")
+                                        }
+                                    }
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            // 查询失败
+                            Log.e("Firestore", "查询文件失败：$e")
+                        }
+                }.start()
+            }
+            MESSAGE_KY_STATE -> {}
+            STATE_TYPE -> {}
+
+        }
+        true
+    })
 }

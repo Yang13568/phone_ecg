@@ -79,7 +79,7 @@ public class ECGService {
         mState = state;
 
         // Give the new state to the Handler so the UI Activity can update
-        mHandler.obtainMessage(FamilyFragment.MESSAGE_KY_STATE, state, -1).sendToTarget();
+        mHandler.obtainMessage(StateFragment.MESSAGE_KY_STATE, state, -1).sendToTarget();
     }
 
     /**
@@ -123,7 +123,7 @@ public class ECGService {
                 if (iDrawBuffer == DrawBufferSize) {
                     byte[] rawData = new byte[DrawBufferSize];
                     System.arraycopy(Draw_Buffer, 0, rawData, 0, DrawBufferSize);
-                    mHandler.obtainMessage(FamilyFragment.MESSAGE_RAW, DrawBufferSize, -1, rawData)
+                    mHandler.obtainMessage(StateFragment.MESSAGE_RAW, DrawBufferSize, -1, rawData)
                             .sendToTarget();
                     iDrawBuffer = 0;
                 }
@@ -142,7 +142,7 @@ public class ECGService {
                         dataList.add(Upload_Buffer1);
                         dataList.add(statearr);
                         iRawBuffer = 0;
-                        mHandler.obtainMessage(FamilyFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, dataList).sendToTarget();
+                        mHandler.obtainMessage(StateFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, dataList).sendToTarget();
                     }else if (iUploadBuffer2 == UploadBufferSize&&buff2){
                         buff1=true;
                         buff2=false;
@@ -157,7 +157,7 @@ public class ECGService {
                         dataList.add(Upload_Buffer2);
                         dataList.add(statearr);
                         iRawBuffer = 0;
-                        mHandler.obtainMessage(FamilyFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, dataList).sendToTarget();
+                        mHandler.obtainMessage(StateFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, dataList).sendToTarget();
                     }
                 }
             }
@@ -198,9 +198,9 @@ public class ECGService {
             iRawData = 0;
         } else {
             // Send a Info message back to the Activity
-            Message msg = mHandler.obtainMessage(FamilyFragment.MESSAGE_INFO);
+            Message msg = mHandler.obtainMessage(StateFragment.MESSAGE_INFO);
             Bundle bundle = new Bundle();
-            bundle.putString(FamilyFragment.KY_INFO, InfoStr);
+            bundle.putString(StateFragment.KY_INFO, InfoStr);
             msg.setData(bundle);
             mHandler.sendMessage(msg);
         }
