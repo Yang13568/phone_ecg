@@ -64,6 +64,7 @@ class StateFragment : Fragment() {
     private lateinit var mbtn_Scan: Button
     private lateinit var mlv_device: ListView
     private lateinit var mStateText: TextView
+    private lateinit var mApText: TextView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
     private lateinit var viewModel: MyViewModel
 
@@ -119,9 +120,9 @@ class StateFragment : Fragment() {
         showListButton.setOnClickListener { showDeviceListDialog() }
         mIhrText = view.findViewById(R.id.IHR_Text)
         mTeText = view.findViewById(R.id.TE_Text)
+        mApText = view.findViewById(R.id.Apnea_Text)
         mbtn_Scan = view.findViewById(R.id.btn_scan)
         mStateText = view.findViewById(R.id.state)
-        mStateText.setText("等待連線")
         mbtn_Scan.setOnClickListener {
             scan()
         }
@@ -315,7 +316,8 @@ class StateFragment : Fragment() {
                 mChartView.ClearChart()
                 mIhrText.text = "0"
                 mTeText.text = "0.0"
-                mStateText.text = "--"
+                mApText.text = "等待連線"
+                mStateText.text = "等待連線"
             }
         }
     }
@@ -491,7 +493,15 @@ class StateFragment : Fragment() {
                 }.start()
             }
             MESSAGE_KY_STATE -> {}
-            STATE_TYPE -> {}
+            STATE_TYPE -> {
+                val apnea = msg.obj
+                if (apnea==1){
+                    mApText.text="醒醒"
+                }
+                else if(apnea==0){
+                    mApText.text="正常"
+                }
+            }
 
         }
         true

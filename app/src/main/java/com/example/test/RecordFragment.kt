@@ -93,7 +93,6 @@ class RecordFragment : Fragment() {
                             val adapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_list_item_1, dataList)
                             val listView = view.findViewById<ListView>(R.id.listview)
                             listView.adapter = adapter
-                            Log.d("Record123",""+documents.size)
                         }
                 }
             }

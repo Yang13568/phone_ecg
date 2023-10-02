@@ -35,6 +35,7 @@ public class ECGService {
     private static final int RawBufferSize = 1250;        //每秒有250個點
     private static final int DrawBufferSize = 16;        //畫圖
     private static final int UploadBufferSize = 1250;        //每5秒上傳
+    private static final int ApneaBufferSize = 15000;    //250*60
     private int uploadcounter = 0;//10000000000000000000000000000000000000000000000000000000000
     private final Handler mHandler;
 
@@ -43,6 +44,7 @@ public class ECGService {
     private int iDrawBuffer;        //DrawBuffer計數
     private int iUploadBuffer1;        //DrawBuffer計數
     private int iUploadBuffer2;        //DrawBuffer計數
+    private int iApneaBuffer;
     boolean buff1=true;
     boolean buff2=false;
     private int mState;
@@ -50,22 +52,25 @@ public class ECGService {
     private byte[] Info_Buffer;        //存放完整的資訊
     private final byte[] Raw_Buffer = new byte[RawBufferSize];        //存放250bytes Raw Data
     private final byte[] Draw_Buffer = new byte[DrawBufferSize];        //存放32bytes Draw Data
+    private final byte[] Apnea_Buffer = new byte[ApneaBufferSize];
     //private final byte[] Upload_Buffer = new byte[UploadBufferSize];        //存放1250bytes Draw Data
     private List<Float> Upload_Buffer1 = new ArrayList<>();  //會有1跟2是要讓他們輪流使用，留5秒上傳到資料庫
     private List<Float> Upload_Buffer2 = new ArrayList<>();
 
     private final StateService mStateService;
-
+    private final ApneaService mApneaService;
     public static final int STATE_TYPE = 1;
 
     public ECGService(Context context, Handler handler) {
         mHandler = handler;
         iRawData = RawSize32;        //Raw Data 計數初始值設為全滿
         iRawBuffer = 0;
+        iApneaBuffer=0;
         iUploadBuffer1 = 0;
         iUploadBuffer2 = 1249;
         Info_Buffer = new byte[0];
         mStateService = new StateService(context, mHandler);
+        mApneaService = new ApneaService(context,mHandler);
     }
 
     public void reset() {
@@ -116,9 +121,11 @@ public class ECGService {
                 }
                 Raw_Buffer[iRawBuffer] = Data[i];
                 Draw_Buffer[iDrawBuffer] = Data[i];
+                Apnea_Buffer[iApneaBuffer] = Data[i];
                 iRawData++;
                 iRawBuffer++;
                 iDrawBuffer++;
+                iApneaBuffer++;
                 iDataEnd = i;
                 if (iDrawBuffer == DrawBufferSize) {
                     byte[] rawData = new byte[DrawBufferSize];
@@ -159,6 +166,13 @@ public class ECGService {
                         iRawBuffer = 0;
                         mHandler.obtainMessage(StateFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, dataList).sendToTarget();
                     }
+                }
+                if(iApneaBuffer == ApneaBufferSize){
+                    byte[] interpolatedData = linearInterpolation(Apnea_Buffer, 6000);
+                    int apnea_state = mApneaService.runModel(interpolatedData);
+                    Log.d("Apena","run");
+                    mHandler.obtainMessage(StateFragment.STATE_TYPE,apnea_state).sendToTarget();
+                    iApneaBuffer=0;
                 }
             }
             //若字元為資訊結尾字元(0x0D)('\n')
