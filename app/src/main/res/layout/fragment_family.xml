@@ -10,5 +10,13 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <com.example.test.ChartView
+            android:id="@+id/chart"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+
+            android:background="#000000"
+            android:keepScreenOn="true"
+            android:visibility="visible" />
     </LinearLayout>
 </ScrollView>

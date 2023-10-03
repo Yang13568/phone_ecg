@@ -56,6 +56,7 @@ public class ECGService {
     //private final byte[] Upload_Buffer = new byte[UploadBufferSize];        //存放1250bytes Draw Data
     private List<Float> Upload_Buffer1 = new ArrayList<>();  //會有1跟2是要讓他們輪流使用，留5秒上傳到資料庫
     private List<Float> Upload_Buffer2 = new ArrayList<>();
+    private ChartView mChartView;
 
     private final StateService mStateService;
     private final ApneaService mApneaService;
@@ -168,11 +169,15 @@ public class ECGService {
                     }
                 }
                 if(iApneaBuffer == ApneaBufferSize){
-                    byte[] interpolatedData = linearInterpolation(Apnea_Buffer, 6000);
-                    int apnea_state = mApneaService.runModel(interpolatedData);
-                    Log.d("Apena","run");
-                    mHandler.obtainMessage(StateFragment.STATE_TYPE,apnea_state).sendToTarget();
-                    iApneaBuffer=0;
+
+//                    byte[] interpolatedData = linearInterpolation(Apnea_Buffer, 6000);
+//                    Log.d("Apena","Buffer"+interpolatedData);
+//                    int apnea_state = mApneaService.runModel(interpolatedData);
+//                    Log.d("Apena","run");
+//                    mHandler.obtainMessage(StateFragment.STATE_TYPE,apnea_state).sendToTarget();
+////                    mHandler.obtainMessage(StateFragment.MESSAGE_RAW, 6000, -1, interpolatedData)
+////                            .sendToTarget();
+//                    iApneaBuffer=0;
                 }
             }
             //若字元為資訊結尾字元(0x0D)('\n')
