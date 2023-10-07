@@ -21,6 +21,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -38,6 +39,8 @@ class RecordFragment : Fragment() {
     private var mParam1: String? = null
     private var mParam2: String? = null
     private lateinit var viewModel: MyViewModel
+    private lateinit var dataList: MutableList<String>
+    private lateinit var adapter: ArrayAdapter<String>
     private var mtextview: TextView? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,9 +63,10 @@ class RecordFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         viewModel = ViewModelProvider(requireActivity()).get(MyViewModel::class.java)
         var email = viewModel.sharedData
+        var change_state=1
         val db = FirebaseFirestore.getInstance()
         val documents = mutableListOf<DocumentSnapshot>()
-        val dataList = mutableListOf<String>()
+        val btn_change = view.findViewById<FloatingActionButton>(R.id.floatingActionButton)
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) // 你可以根据你的需求选择不同的日期时间格式
         db.collection("USER")
             .whereEqualTo("userEmail", email)
@@ -71,9 +75,9 @@ class RecordFragment : Fragment() {
                 for (document in querySnapshot.documents) {
                     val documentId = document.id
                     val userRef = db.collection("USER").document(documentId)
-
+                    dataList = mutableListOf()
                     // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
-                    userRef.collection("Record")
+                    userRef.collection("heartRecord")
                         .orderBy("timestamp", Query.Direction.DESCENDING)
                         .get()
                         .addOnSuccessListener { querySnapshot ->
@@ -90,12 +94,91 @@ class RecordFragment : Fragment() {
                                     dataList.add(displayText)
                                 }
                             }
-                            val adapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_list_item_1, dataList)
+                            adapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_list_item_1, dataList)
                             val listView = view.findViewById<ListView>(R.id.listview)
                             listView.adapter = adapter
                         }
                 }
             }
+        btn_change.setOnClickListener(){
+            if (change_state==1){ //show apneaRecord
+                dataList.clear()
+                db.collection("USER")
+                    .whereEqualTo("userEmail", email)
+                    .get()
+                    .addOnSuccessListener { querySnapshot ->
+                        for (document in querySnapshot.documents) {
+                            val documentId = document.id
+                            val userRef = db.collection("USER").document(documentId)
+
+                            // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
+                            userRef.collection("apneaRecord")
+                                .orderBy("timestamp", Query.Direction.DESCENDING)
+                                .get()
+                                .addOnSuccessListener { querySnapshot ->
+                                    // 构建文档列表
+                                    for (doc in querySnapshot.documents) {
+                                        documents.add(doc)
+                                        val timestamp = doc.getTimestamp("timestamp")
+                                        val state = doc.getLong("state")?.toInt()
+                                        if (timestamp != null) {
+                                            val date = timestamp.toDate()
+                                            val formattedDate = sdf.format(date)
+                                            var displayText = "something wrong"
+                                            if (state == 0) {
+                                                displayText = "$formattedDate - 睡眠呼吸狀況正常"
+                                            }else if(state==1){
+                                                displayText = "$formattedDate - 睡眠呼吸狀況異常"
+                                            }
+                                            dataList.add(displayText)
+                                        }
+                                    }
+                                    val adapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_list_item_1, dataList)
+                                    val listView = view.findViewById<ListView>(R.id.listview)
+                                    listView.adapter = adapter
+                                }
+                        }
+                    }
+                adapter.notifyDataSetChanged() // 数据变化后通知适配器更新
+                change_state=2
+            }else if(change_state==2){ //show heartRecord
+                dataList.clear()
+                db.collection("USER")
+                    .whereEqualTo("userEmail", email)
+                    .get()
+                    .addOnSuccessListener { querySnapshot ->
+                        for (document in querySnapshot.documents) {
+                            val documentId = document.id
+                            val userRef = db.collection("USER").document(documentId)
+
+                            // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
+                            userRef.collection("heartRecord")
+                                .orderBy("timestamp", Query.Direction.DESCENDING)
+                                .get()
+                                .addOnSuccessListener { querySnapshot ->
+                                    // 构建文档列表
+                                    for (doc in querySnapshot.documents) {
+                                        documents.add(doc)
+                                        val timestamp = doc.getTimestamp("timestamp")
+                                        val state = doc.getString("state")
+                                        if (timestamp != null) {
+                                            val date = timestamp.toDate()
+                                            val formattedDate = sdf.format(date)
+
+                                            val displayText = "$formattedDate - $state"
+                                            dataList.add(displayText)
+                                        }
+                                    }
+                                    val adapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_list_item_1, dataList)
+                                    val listView = view.findViewById<ListView>(R.id.listview)
+                                    listView.adapter = adapter
+                                }
+                        }
+                    }
+                adapter.notifyDataSetChanged() // 数据变化后通知适配器更新
+                change_state=1
+            }
+        }
 
     }
     companion object {

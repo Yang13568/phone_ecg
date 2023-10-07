@@ -65,12 +65,14 @@ class StateFragment : Fragment() {
     private lateinit var mlv_device: ListView
     private lateinit var mStateText: TextView
     private lateinit var mApText: TextView
+    private lateinit var mHourText: TextView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
     private lateinit var viewModel: MyViewModel
 
     private lateinit var email :String
     private var State_array = mutableListOf<String?>()
     private var frequencyMap = mutableMapOf<String, Int>()
+    private var hour_apnea = ArrayList<Int>()
     private val REQUEST_BLUETOOTH_PERMISSION = 1
     private var isDeviceConnected = true
     private val handler = Handler()
@@ -115,7 +117,7 @@ class StateFragment : Fragment() {
         }
         mStatusTextView = view.findViewById(R.id.textViewStatus)
 
-        mlv_device = view.findViewById(R.id.lv_device)
+        //mlv_device = view.findViewById(R.id.lv_device)
         showListButton = view.findViewById(R.id.buttonShowList)
         showListButton.setOnClickListener { showDeviceListDialog() }
         mIhrText = view.findViewById(R.id.IHR_Text)
@@ -123,11 +125,12 @@ class StateFragment : Fragment() {
         mApText = view.findViewById(R.id.Apnea_Text)
         mbtn_Scan = view.findViewById(R.id.btn_scan)
         mStateText = view.findViewById(R.id.state)
+        mHourText = view.findViewById(R.id.onehour_Text)
         mbtn_Scan.setOnClickListener {
             scan()
         }
         mBTArrayAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1)
-        mlv_device.adapter = mBTArrayAdapter
+        //mlv_device.adapter = mBTArrayAdapter
 
         mChartView = view.findViewById(R.id.Chart)
         val displayMetrics = DisplayMetrics()
@@ -327,6 +330,9 @@ class StateFragment : Fragment() {
         when (state) {
             BluetoothService.STATE_CONNECTED -> {
                 mStatusTextView.text = "Bluetooth Status:已連線"
+                mApText.text = "測量中"
+                mStateText.text = "測量中"
+                mHourText.text = "測量中"
                 Log.d("BluetoothService", "handleBluetoothState: Connected")
             }
 
@@ -478,7 +484,7 @@ class StateFragment : Fragment() {
                                             // 添加新文档失败
                                             Log.e("Firestore", "心跳添加失败：$e")
                                         }
-                                        userRef.collection("Record").add(record_data).addOnSuccessListener {
+                                        userRef.collection("heartRecord").add(record_data).addOnSuccessListener {
                                             Log.d("Firestore","紀錄添加成功")
                                         }.addOnFailureListener{ e ->
                                             Log.d("Firestore","紀錄添加失敗:$e")
@@ -495,11 +501,43 @@ class StateFragment : Fragment() {
             MESSAGE_KY_STATE -> {}
             STATE_TYPE -> {
                 val apnea = msg.obj
+                val record_data = hashMapOf(
+                    "state" to apnea,
+                    "timestamp" to FieldValue.serverTimestamp()
+                )
+                db.collection("USER")
+                    .whereEqualTo("userEmail", email)
+                    .get()
+                    .addOnSuccessListener { querySnapshot ->
+                        for (document in querySnapshot.documents) {
+                            val documentId = document.id
+                            val userRef = db.collection("USER").document(documentId)
+                            userRef.collection("apneaRecord").add(record_data).addOnSuccessListener {
+                                Log.d("Firestore","紀錄添加成功")
+                            }.addOnFailureListener{ e ->
+                                Log.d("Firestore","紀錄添加失敗:$e")
+                            }
+                        }
+                    }
                 if (apnea==1){
                     mApText.text="醒醒"
+                    if (hour_apnea.size>60){
+                        hour_apnea.removeAt(0)
+                        Log.d("apnea","刪除起動:${hour_apnea.size}")
+                    }
+                    hour_apnea.add(apnea.toString().toInt())
+                    mHourText.text = hour_apnea.count{it == 1}.toString()
+                    Log.d("apnea","hour_apnea:$hour_apnea")
                 }
                 else if(apnea==0){
                     mApText.text="正常"
+                    if (hour_apnea.size>60){
+                        hour_apnea.removeAt(0)
+                        Log.d("apnea","刪除起動:${hour_apnea.size}")
+                    }
+                    hour_apnea.add(apnea.toString().toInt())
+                    mHourText.text = hour_apnea.count{it == 1}.toString()
+                    Log.d("apnea","hour_apnea:$hour_apnea")
                 }
             }
 

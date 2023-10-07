@@ -6,10 +6,23 @@
     android:layout_height="match_parent"
     tools:context=".RecordFragment">
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/floatingActionButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:src="@drawable/ic_baseline_swap_horizontal_circle_24"
+        app:fabSize="normal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:useCompatPadding="true" />
+
     <ListView
         android:id="@+id/listview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent" >
+
+    </ListView>
 </androidx.constraintlayout.widget.ConstraintLayout>
