@@ -523,21 +523,17 @@ class StateFragment : Fragment() {
                     mApText.text="醒醒"
                     if (hour_apnea.size>60){
                         hour_apnea.removeAt(0)
-                        Log.d("apnea","刪除起動:${hour_apnea.size}")
                     }
                     hour_apnea.add(apnea.toString().toInt())
                     mHourText.text = hour_apnea.count{it == 1}.toString()
-                    Log.d("apnea","hour_apnea:$hour_apnea")
                 }
                 else if(apnea==0){
                     mApText.text="正常"
                     if (hour_apnea.size>60){
                         hour_apnea.removeAt(0)
-                        Log.d("apnea","刪除起動:${hour_apnea.size}")
                     }
                     hour_apnea.add(apnea.toString().toInt())
                     mHourText.text = hour_apnea.count{it == 1}.toString()
-                    Log.d("apnea","hour_apnea:$hour_apnea")
                 }
             }
 

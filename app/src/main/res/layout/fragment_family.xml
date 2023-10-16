@@ -10,5 +10,66 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <TextView
+            android:id="@+id/textView9"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="模擬測試"
+            android:textAlignment="center"
+            android:textColor="#2196F3"
+            android:textSize="30sp" />
+
+        <com.github.mikephil.charting.charts.LineChart
+            android:id="@+id/linechart"
+            android:layout_width="match_parent"
+            android:layout_height="394dp"
+            android:background="#000000" >
+
+        </com.github.mikephil.charting.charts.LineChart>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/textView10"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="心律不整："
+                android:textSize="25sp" />
+
+            <TextView
+                android:id="@+id/heart_textview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="TextView"
+                android:textSize="25sp" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/textView14"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="睡眠呼吸："
+                android:textSize="25sp" />
+
+            <TextView
+                android:id="@+id/apnea_textview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="判斷中..."
+                android:textSize="25sp" />
+        </LinearLayout>
     </LinearLayout>
+
 </ScrollView>
