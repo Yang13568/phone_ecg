@@ -139,30 +139,39 @@ public class ECGService {
                         buff1=false;
                         buff2=true;
                         int[] statearr = new int[5];
+                        int[] statearrnormalize = new int[5];//
                         for (int count = 0,statecounter=0;count < 1250;count+=250) {
-                            byte[] rawData = new byte[RawBufferSize];
+                            byte[] rawData = new byte[250];
                             System.arraycopy(Raw_Buffer, count, rawData, 0, 250);
                             byte[] interpolatedData = linearInterpolation(rawData, 360);
+                            byte[] interpolatedDatanormalize = linearInterpolationwithnomarlize(rawData, 360);//
+                            statearrnormalize[statecounter]=mStateService.runModel(interpolatedDatanormalize);//
                             statearr[statecounter++] = mStateService.runModel(interpolatedData);
                         }
                         ArrayList<Object> dataList = new ArrayList<>();
                         dataList.add(Upload_Buffer1);
                         dataList.add(statearr);
+                        dataList.add(statearrnormalize);
                         iRawBuffer = 0;
                         mHandler.obtainMessage(StateFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, dataList).sendToTarget();
                     }else if (iUploadBuffer2 == UploadBufferSize&&buff2){
                         buff1=true;
                         buff2=false;
                         int[] statearr = new int[5];
+                        int[] statearrnormalize = new int[5];//
                         for (int count = 0;count < 1250;count+=250) {
-                            byte[] rawData = new byte[RawBufferSize];
-                            System.arraycopy(Raw_Buffer, count, rawData, 0, 250);
-                            byte[] interpolatedData = linearInterpolation(rawData, 360);
+                            byte[] RawData = new byte[250];
+                            System.arraycopy(Raw_Buffer, count, RawData, 0, 250);
+                            byte[] interpolatedData = linearInterpolation(RawData, 360);
+
+                            byte[] interpolatedDatanormalize = linearInterpolationwithnomarlize(RawData, 360);//
                             statearr[((count+250)/250)-1] = mStateService.runModel(interpolatedData);
+                            statearrnormalize[((count+250)/250)-1]=mStateService.runModel(interpolatedDatanormalize);//
                         }
                         ArrayList<Object> dataList = new ArrayList<>();
                         dataList.add(Upload_Buffer2);
                         dataList.add(statearr);
+                        dataList.add(statearrnormalize);//
                         iRawBuffer = 0;
                         mHandler.obtainMessage(StateFragment.MESSAGE_UPLOAD, UploadBufferSize, -1, dataList).sendToTarget();
                     }
@@ -230,12 +239,13 @@ public class ECGService {
     }
 
     public static byte[] linearInterpolation(byte[] data, int newLength) {
-        int[] intData = new int[data.length];
+        float[] intData = new float[data.length];
         for (int i = 0; i < data.length; i++) {
             intData[i] = data[i] & 0xFF; // Convert bytes to positive int values
         }
 
-        int[] interpolatedIntData = new int[newLength];
+//        for (int i = 0;i < intData.length;i++)Log.d("wtf8181","intdata:"+intData[i]);
+        float[] interpolatedIntData = new float[newLength];
         float step = (float) (intData.length - 1) / (newLength - 1);
 
         for (int i = 0; i < newLength; i++) {
@@ -249,7 +259,38 @@ public class ECGService {
                 interpolatedIntData[i] = interpolatedValue;
             }
         }
+        byte[] interpolatedByteData = new byte[newLength];
+        for (int i = 0; i < newLength; i++) {
+            interpolatedByteData[i] = (byte) interpolatedIntData[i];
+        }
+        return interpolatedByteData;
+    }
+    public static byte[] linearInterpolationwithnomarlize(byte[] data, int newLength) {
+        float[] intData = new float[data.length];
+        for (int i = 0; i < data.length; i++) {
+            intData[i] = data[i] & 0xFF; // Convert bytes to positive int values
+        }
 
+//        for (int i = 0;i < intData.length;i++)Log.d("wtf8181","intdata:"+intData[i]);
+        float[] interpolatedIntData = new float[newLength];
+        float step = (float) (intData.length - 1) / (newLength - 1);
+
+        for (int i = 0; i < newLength; i++) {
+            int index = (int) (i * step);
+            float fraction = i * step - index;
+
+            if (index == intData.length - 1) {
+                interpolatedIntData[i] = intData[index];
+            } else {
+                int interpolatedValue = Math.round((1 - fraction) * intData[index] + fraction * intData[index + 1]);
+                interpolatedIntData[i] = interpolatedValue;
+            }
+        }
+        for(int i = 0;i<newLength;i++){
+//            Log.d("wtf8181","before_intdata:"+interpolatedIntData[i]);
+            interpolatedIntData[i] = (interpolatedIntData[i]/255)*4-2;
+//            Log.d("wtf8181","after_intdata:"+interpolatedIntData[i]);
+        }
         byte[] interpolatedByteData = new byte[newLength];
         for (int i = 0; i < newLength; i++) {
             interpolatedByteData[i] = (byte) interpolatedIntData[i];
@@ -257,5 +298,4 @@ public class ECGService {
 
         return interpolatedByteData;
     }
-
 }

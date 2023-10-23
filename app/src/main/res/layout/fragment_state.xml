@@ -161,6 +161,13 @@
             android:layout_height="wrap_content"
             android:text="收尋以配對藍芽裝置" />
 
+        <TextView
+            android:id="@+id/textView15"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="TextView"
+            android:textSize="22sp" />
+
         <Button
             android:id="@+id/btn_scan"
             android:layout_width="match_parent"

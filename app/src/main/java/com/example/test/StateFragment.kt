@@ -66,6 +66,7 @@ class StateFragment : Fragment() {
     private lateinit var mStateText: TextView
     private lateinit var mApText: TextView
     private lateinit var mHourText: TextView
+    private lateinit var mtestText: TextView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
     private lateinit var viewModel: MyViewModel
 
@@ -125,6 +126,7 @@ class StateFragment : Fragment() {
         mApText = view.findViewById(R.id.Apnea_Text)
         mbtn_Scan = view.findViewById(R.id.btn_scan)
         mStateText = view.findViewById(R.id.state)
+        mtestText = view.findViewById(R.id.textView15)
         mHourText = view.findViewById(R.id.onehour_Text)
         mbtn_Scan.setOnClickListener {
             scan()
@@ -405,6 +407,7 @@ class StateFragment : Fragment() {
                 val rdata = msg.obj as ArrayList<Any>
                 val heartbeat = rdata[0]
                 val state = rdata[1] as IntArray
+                val statenormalize = rdata[2] as IntArray
                 State_array.clear()
                 for (i in 0..4) {
                     val toastMessage = when (state[i]) {
@@ -417,7 +420,22 @@ class StateFragment : Fragment() {
                     }
                     if (toastMessage != null) {
                         State_array.add(toastMessage)
+                        Log.d("wtf8181","judge:"+toastMessage)
+                    }///////////////////////////////////////////////
+                    val toastMessagenormalize = when (statenormalize[i]) {
+                        0 -> "Normal"
+                        1 -> "S"
+                        2 -> "V"
+                        3 -> "F"
+                        4 -> "Q"
+                        else -> null
                     }
+                    if (toastMessage != null) {
+                        State_array.add(toastMessage)
+                        Log.d("wtf8181","judgenormalize:"+toastMessagenormalize)
+
+                        mtestText.text = toastMessagenormalize
+                    }///////////////////////////////////////////////////////////////
                 }
                 frequencyMap.clear()
                 var mostFrequentToast: String? = null
