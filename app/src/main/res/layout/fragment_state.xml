@@ -127,7 +127,7 @@
                 android:id="@+id/Apnea_Text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="等待連線"
+                android:text="未開啟"
                 android:textAlignment="center"
                 android:textColor="#009688"
                 android:textSize="26sp" />
@@ -149,7 +149,7 @@
                 android:id="@+id/onehour_Text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="等待連線"
+                android:text="未開啟"
                 android:textAlignment="center"
                 android:textColor="#009688"
                 android:textSize="26sp" />
@@ -160,6 +160,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="收尋以配對藍芽裝置" />
+
+        <Button
+            android:id="@+id/apnea_btn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="睡眠呼吸中止開關" />
 
         <TextView
             android:id="@+id/textView15"

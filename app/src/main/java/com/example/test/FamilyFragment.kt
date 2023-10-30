@@ -27,6 +27,7 @@ import java.io.InputStreamReader
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
+import kotlin.experimental.and
 
 
 @SuppressLint("MissingPermission")
@@ -115,12 +116,13 @@ class FamilyFragment : Fragment() {
                                         iapnea_count = 0
                                         apneaList.clear()
                                     }
-                                    if (iheart_count == 360) {
+                                    if (iheart_count == 100) {
+                                        val after_heartList = linearInterpolation2(heartList,360)
                                         val heart_result =
-                                            run_apnea_Model(heartList, "model_9532.tflite")
+                                            after_heartList?.let { run_apnea_Model(it, "model_9532.tflite") }
                                         if (heart_result == 0) mHeartText.setTextColor(Color.GREEN)
                                         else mHeartText.setTextColor(Color.RED)
-                                        mHeartText.text = when (heart_result) {
+                                        val result = when (heart_result) {
                                             0 -> "Normal"
                                             1 -> "S"
                                             2 -> "V"
@@ -128,6 +130,8 @@ class FamilyFragment : Fragment() {
                                             4 -> "Q"
                                             else -> null
                                         }
+                                        mHeartText.text = result
+//                                        Log.d("wtf8181","result:"+result)
                                         iheart_count = 0
                                         heartList.clear()
                                     }
@@ -204,10 +208,8 @@ class FamilyFragment : Fragment() {
         if (modelinput == 6000) {
             if (outputData[0] > outputData[1]) herttype = 0
             else herttype = 1
-            Log.d("wtf8181", "apnea")
         } else {
             herttype = m(outputData)
-            Log.d("wtf8181", "heart")
         }
         tflite.close()
         return herttype;
@@ -246,4 +248,53 @@ class FamilyFragment : Fragment() {
         return maxindex
     }
 
+    fun linearInterpolation(data: ArrayList<Float>, newLength: Int): ArrayList<Float>? {
+        val intData = FloatArray(data.size)
+
+//        for (int i = 0;i < intData.length;i++)Log.d("wtf8181","intdata:"+intData[i]);
+        val interpolatedIntData = ArrayList<Float>(newLength)
+        val step = (intData.size - 1).toFloat() / (newLength - 1)
+        for (i in 0 until newLength) {
+            val index = (i * step).toInt()
+            val fraction = i * step - index
+            if (index == intData.size - 1) {
+                interpolatedIntData.add(0.0f)
+                interpolatedIntData[i] = intData[index]
+            } else {
+                interpolatedIntData.add(0.0f)
+                val interpolatedValue =
+                    Math.round((1 - fraction) * intData[index] + fraction * intData[index + 1])
+                interpolatedIntData[i] = interpolatedValue.toFloat()
+            }
+        }
+        return interpolatedIntData
+    }
+    fun linearInterpolation2(data: ArrayList<Float>, newLength: Int): ArrayList<Float> {
+        val interpolatedData = ArrayList<Float>(newLength)
+
+        if (data.size < 2) {
+            // 如果原始数据点少于2个，无法进行插值
+            interpolatedData.addAll(data)
+        } else {
+            val step = (data.size - 1).toFloat() / (newLength - 1).toFloat()
+
+            for (i in 0 until newLength) {
+                val index = i * step
+                val lowerIndex = index.toInt()
+                val upperIndex = if (lowerIndex < data.size - 1) lowerIndex + 1 else lowerIndex
+
+                val fraction = index - lowerIndex
+
+                val lowerValue = data[lowerIndex]
+                val upperValue = data[upperIndex]
+
+                val interpolatedValue = lowerValue + fraction * (upperValue - lowerValue)
+                interpolatedData.add(interpolatedValue)
+            }
+        }
+
+        return interpolatedData
+    }
 }
+//vnvnnvvnnnvn    5v 7n
+//vvnnnsvnvvvs    6v4n2s

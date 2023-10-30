@@ -36,6 +36,7 @@ class StateFragment : Fragment() {
     private lateinit var mBluetoothService: BluetoothService
     private lateinit var mECGService: ECGService
     private var delay = 0
+    private var apnea_state=0
     val db = FirebaseFirestore.getInstance()
     companion object {
         const val MESSAGE_STATE_CHANGE = 1
@@ -62,6 +63,7 @@ class StateFragment : Fragment() {
     private lateinit var mTeText: TextView
     private lateinit var showListButton: Button
     private lateinit var mbtn_Scan: Button
+    private lateinit var mbtn_Apnea: Button
     private lateinit var mlv_device: ListView
     private lateinit var mStateText: TextView
     private lateinit var mApText: TextView
@@ -128,8 +130,22 @@ class StateFragment : Fragment() {
         mStateText = view.findViewById(R.id.state)
         mtestText = view.findViewById(R.id.textView15)
         mHourText = view.findViewById(R.id.onehour_Text)
+        mbtn_Apnea = view.findViewById(R.id.apnea_btn)
         mbtn_Scan.setOnClickListener {
             scan()
+        }
+        mbtn_Apnea.setOnClickListener{
+            if (apnea_state==0) {
+                apnea_state = 1
+                mApText.text = "等待測量"
+                mHourText.text = "等待測量"
+                Log.d("wtf8181","apneastate:"+apnea_state)
+            }else{
+                apnea_state = 0
+                mApText.text = "未開啟"
+                mHourText.text = "未開啟"
+                Log.d("wtf8181","apneastate:"+apnea_state)
+            }
         }
         mBTArrayAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1)
         //mlv_device.adapter = mBTArrayAdapter
@@ -420,7 +436,7 @@ class StateFragment : Fragment() {
                     }
                     if (toastMessage != null) {
                         State_array.add(toastMessage)
-                        Log.d("wtf8181","judge:"+toastMessage)
+//                        Log.d("wtf8181","judge:"+toastMessage)
                     }///////////////////////////////////////////////
                     val toastMessagenormalize = when (statenormalize[i]) {
                         0 -> "Normal"
@@ -432,7 +448,7 @@ class StateFragment : Fragment() {
                     }
                     if (toastMessage != null) {
                         State_array.add(toastMessage)
-                        Log.d("wtf8181","judgenormalize:"+toastMessagenormalize)
+//                        Log.d("wtf8181","judgenormalize:"+toastMessagenormalize)
 
                         mtestText.text = toastMessagenormalize
                     }///////////////////////////////////////////////////////////////
@@ -518,40 +534,43 @@ class StateFragment : Fragment() {
             }
             MESSAGE_KY_STATE -> {}
             STATE_TYPE -> {
-                val apnea = msg.obj
-                val record_data = hashMapOf(
-                    "state" to apnea,
-                    "timestamp" to FieldValue.serverTimestamp()
-                )
-                db.collection("USER")
-                    .whereEqualTo("userEmail", email)
-                    .get()
-                    .addOnSuccessListener { querySnapshot ->
-                        for (document in querySnapshot.documents) {
-                            val documentId = document.id
-                            val userRef = db.collection("USER").document(documentId)
-                            userRef.collection("apneaRecord").add(record_data).addOnSuccessListener {
-                                Log.d("Firestore","紀錄添加成功")
-                            }.addOnFailureListener{ e ->
-                                Log.d("Firestore","紀錄添加失敗:$e")
+                if (apnea_state==1){
+                    Log.d("wtf8181","有執行")
+                    val apnea = msg.obj
+                    val record_data = hashMapOf(
+                        "state" to apnea,
+                        "timestamp" to FieldValue.serverTimestamp()
+                    )
+                    db.collection("USER")
+                        .whereEqualTo("userEmail", email)
+                        .get()
+                        .addOnSuccessListener { querySnapshot ->
+                            for (document in querySnapshot.documents) {
+                                val documentId = document.id
+                                val userRef = db.collection("USER").document(documentId)
+                                userRef.collection("apneaRecord").add(record_data).addOnSuccessListener {
+                                    Log.d("Firestore","紀錄添加成功")
+                                }.addOnFailureListener{ e ->
+                                    Log.d("Firestore","紀錄添加失敗:$e")
+                                }
                             }
                         }
+                    if (apnea==1){
+                        mApText.text="醒醒"
+                        if (hour_apnea.size>60){
+                            hour_apnea.removeAt(0)
+                        }
+                        hour_apnea.add(apnea.toString().toInt())
+                        mHourText.text = hour_apnea.count{it == 1}.toString()
                     }
-                if (apnea==1){
-                    mApText.text="醒醒"
-                    if (hour_apnea.size>60){
-                        hour_apnea.removeAt(0)
+                    else if(apnea==0){
+                        mApText.text="正常"
+                        if (hour_apnea.size>60){
+                            hour_apnea.removeAt(0)
+                        }
+                        hour_apnea.add(apnea.toString().toInt())
+                        mHourText.text = hour_apnea.count{it == 1}.toString()
                     }
-                    hour_apnea.add(apnea.toString().toInt())
-                    mHourText.text = hour_apnea.count{it == 1}.toString()
-                }
-                else if(apnea==0){
-                    mApText.text="正常"
-                    if (hour_apnea.size>60){
-                        hour_apnea.removeAt(0)
-                    }
-                    hour_apnea.add(apnea.toString().toInt())
-                    mHourText.text = hour_apnea.count{it == 1}.toString()
                 }
             }
 

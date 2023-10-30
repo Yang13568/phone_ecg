@@ -179,7 +179,6 @@ public class ECGService {
                 if(iApneaBuffer == ApneaBufferSize){
                     byte[] interpolatedData = linearInterpolation(Apnea_Buffer, 6000);
                     int apnea_state = mApneaService.runModel(interpolatedData);
-                    Log.d("Apena","run");
                     mHandler.obtainMessage(StateFragment.STATE_TYPE,apnea_state).sendToTarget();
                     iApneaBuffer=0;
                 }
@@ -287,9 +286,9 @@ public class ECGService {
             }
         }
         for(int i = 0;i<newLength;i++){
-//            Log.d("wtf8181","before_intdata:"+interpolatedIntData[i]);
+            Log.d("wtf8181","before_intdata:"+interpolatedIntData[i]);
             interpolatedIntData[i] = (interpolatedIntData[i]/255)*4-2;
-//            Log.d("wtf8181","after_intdata:"+interpolatedIntData[i]);
+            Log.d("wtf8181","after_intdata:"+interpolatedIntData[i]);
         }
         byte[] interpolatedByteData = new byte[newLength];
         for (int i = 0; i < newLength; i++) {
