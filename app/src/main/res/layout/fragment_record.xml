@@ -27,6 +27,7 @@
         android:descendantFocusability="blocksDescendants"
         android:gravity="center"
         android:visibility="invisible"
+        app:layout_constraintBottom_toTopOf="@+id/textView18"
         app:layout_constraintStart_toEndOf="@+id/textView16"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -151,5 +152,13 @@
         app:layout_constraintBottom_toBottomOf="@+id/textView18"
         app:layout_constraintStart_toEndOf="@+id/textView18"
         app:layout_constraintTop_toTopOf="@+id/textView18" />
+
+    <Button
+        android:id="@+id/search_btn"
+        android:layout_width="50sp"
+        android:layout_height="wrap_content"
+        app:icon="@drawable/ic_baseline_search_24"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

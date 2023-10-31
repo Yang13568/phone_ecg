@@ -1,5 +1,6 @@
 package com.example.test
 
+
 import MyViewModel
 import android.Manifest
 import android.app.Activity.RESULT_OK
@@ -58,7 +59,8 @@ class RecordFragment : Fragment() {
     private lateinit var adapter: ArrayAdapter<String>
     private var mtextview: TextView? = null
     private var mbarchart: BarChart? = null
-    private var choose_date=""
+    private var choose_date = ""
+    private var record_data = mutableListOf<MutableList<String?>>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (arguments != null) {
@@ -80,46 +82,50 @@ class RecordFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         viewModel = ViewModelProvider(requireActivity()).get(MyViewModel::class.java)
         var email = viewModel.sharedData
-        var change_state=1
-        var choose_time=0
-        var choose_unit=0
-        var choose_mod=0
+        var change_state = 1
+        var choose_time = -1
+        var choose_unit = -1
+        var choose_mod = -1
         val db = FirebaseFirestore.getInstance()
         val documents = mutableListOf<DocumentSnapshot>()
         val Data = mutableListOf<LongArray>()
         val btn_date = view.findViewById<Button>(R.id.showdate_btn)
-        val barChart = view.findViewById<BarChart>(R.id.barChart)
-        val entries = ArrayList<BarEntry>()
-        var date_array = ArrayList<String>()
-        //模式選擇
-        val modPicker = view.findViewById<NumberPicker>(R.id.modPicker)
-        val showmodbtn = view.findViewById<Button>(R.id.modPickerButton)
-        val moddata = arrayOf("心律不整","睡眠呼吸中止")
-        modPicker.minValue = 0
-        modPicker.maxValue = moddata.size - 1
-        modPicker.displayedValues = moddata
-        showmodbtn.setOnClickListener {
-            showmodbtn.visibility = View.INVISIBLE
-            modPicker.visibility = View.VISIBLE
-        }
-        val modisScrolling = AtomicBoolean(false) // 用于追踪滚轮是否正在滚动
+        val btn_search = view.findViewById<Button>(R.id.search_btn)
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
-        modPicker.setOnScrollListener { picker, scrollState ->
+        //日期選擇
+        btn_date.setOnClickListener {
+            showDatePicker(requireContext(), btn_date)
+            Log.d("wtf8181", "date:" + choose_date)
+            Log.d("wtf8181", "time:" + choose_time)
+            Log.d("wtf8181", "unit:" + choose_unit)
+            Log.d("wtf8181", "mode:" + choose_mod)
+        }
+
+        //時間選擇
+        val hourPicker = view.findViewById<NumberPicker>(R.id.hourPicker)
+        val showhourbtn = view.findViewById<Button>(R.id.showHourButton)
+        hourPicker.minValue = 0
+        hourPicker.maxValue = 23
+        showhourbtn.setOnClickListener {
+            showhourbtn.visibility = View.INVISIBLE
+            hourPicker.visibility = View.VISIBLE
+        }
+        val wheelisScrolling = AtomicBoolean(false) // 用于追踪滚轮是否正在滚动
+
+        hourPicker.setOnScrollListener { picker, scrollState ->
             when (scrollState) {
                 NumberPicker.OnScrollListener.SCROLL_STATE_IDLE -> {
-                    if (modisScrolling.get()) {
-                        when(modPicker.value){
-                            0->showmodbtn.text = "心律不整"
-                            1->showmodbtn.text = "睡眠呼吸"
-                        }
-                        choose_mod=modPicker.value
-                        modPicker.visibility = View.INVISIBLE
-                        showmodbtn.visibility = View.VISIBLE
+                    if (wheelisScrolling.get()) {
+                        showhourbtn.text = hourPicker.value.toString()
+                        choose_time = hourPicker.value
+                        hourPicker.visibility = View.INVISIBLE
+                        showhourbtn.visibility = View.VISIBLE
                     }
-                    modisScrolling.set(false)
+                    wheelisScrolling.set(false)
                 }
                 NumberPicker.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL -> {
-                    modisScrolling.set(true)
+                    wheelisScrolling.set(true)
                 }
             }
         }
@@ -141,10 +147,10 @@ class RecordFragment : Fragment() {
             when (scrollState) {
                 NumberPicker.OnScrollListener.SCROLL_STATE_IDLE -> {
                     if (isScrolling.get()) {
-                        when(numberPicker.value){
-                            0->showButton.text = "24h"
-                            1->showButton.text = "12h"
-                            2->showButton.text = "1h"
+                        when (numberPicker.value) {
+                            0 -> showButton.text = "24h"
+                            1 -> showButton.text = "12h"
+                            2 -> showButton.text = "1h"
                         }
                         choose_unit = numberPicker.value
                         numberPicker.visibility = View.INVISIBLE
@@ -157,43 +163,47 @@ class RecordFragment : Fragment() {
                 }
             }
         }
-        //日期選擇
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) // 你可以根据你的需求选择不同的日期时间格式
-        btn_date.setOnClickListener{
-            showDatePicker(requireContext(),btn_date)
-            Log.d("wtf8181","date:"+choose_date)
-            Log.d("wtf8181","time:"+choose_time)
-        }
-        //時間選擇
-        val hourPicker = view.findViewById<NumberPicker>(R.id.hourPicker)
-        val showhourbtn = view.findViewById<Button>(R.id.showHourButton)
-        hourPicker.minValue = 0
-        hourPicker.maxValue = 23
-        showhourbtn.setOnClickListener {
-            showhourbtn.visibility = View.INVISIBLE
-            hourPicker.visibility = View.VISIBLE
-        }
-        val wheelisScrolling = AtomicBoolean(false) // 用于追踪滚轮是否正在滚动
 
-        hourPicker.setOnScrollListener { picker, scrollState ->
+        //模式選擇
+        val modPicker = view.findViewById<NumberPicker>(R.id.modPicker)
+        val showmodbtn = view.findViewById<Button>(R.id.modPickerButton)
+        val moddata = arrayOf("心律不整", "睡眠呼吸中止")
+        modPicker.minValue = 0
+        modPicker.maxValue = moddata.size - 1
+        modPicker.displayedValues = moddata
+        showmodbtn.setOnClickListener {
+            showmodbtn.visibility = View.INVISIBLE
+            modPicker.visibility = View.VISIBLE
+        }
+        val modisScrolling = AtomicBoolean(false) // 用于追踪滚轮是否正在滚动
+
+        modPicker.setOnScrollListener { picker, scrollState ->
             when (scrollState) {
                 NumberPicker.OnScrollListener.SCROLL_STATE_IDLE -> {
-                    if (wheelisScrolling.get()) {
-                        showhourbtn.text = hourPicker.value.toString()
-                        choose_time=hourPicker.value
-                        Log.d("wtf8181","time:"+choose_time)
-                        hourPicker.visibility = View.INVISIBLE
-                        showhourbtn.visibility = View.VISIBLE
+                    if (modisScrolling.get()) {
+                        when (modPicker.value) {
+                            0 -> showmodbtn.text = "心律不整"
+                            1 -> showmodbtn.text = "睡眠呼吸"
+                        }
+                        choose_mod = modPicker.value
+                        modPicker.visibility = View.INVISIBLE
+                        showmodbtn.visibility = View.VISIBLE
                     }
-                    wheelisScrolling.set(false)
+                    modisScrolling.set(false)
                 }
                 NumberPicker.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL -> {
-                    wheelisScrolling.set(true)
+                    modisScrolling.set(true)
                 }
             }
         }
-
-        var counter = 0
+        btn_search.setOnClickListener {
+            if (choose_date != "" && choose_time != -1 && choose_mod != -1 && choose_unit != -1) {
+                Log.d("wtf8181", "choose_date:" + choose_date + ", choose_time:" + choose_time)
+                val choosetime = "$choose_date $choose_time:00:00"
+                val starttime = convertTimeToTimestamp(choosetime)
+                getRecord(starttime, choose_unit,view)
+            }
+        }
         db.collection("USER")
             .whereEqualTo("userEmail", email)
             .get()
@@ -207,81 +217,164 @@ class RecordFragment : Fragment() {
                         .orderBy("timestamp", Query.Direction.ASCENDING)
                         .get()
                         .addOnSuccessListener { querySnapshot ->
-                            var longarray = longArrayOf(0,0,0,0,0)
+                            var halfdayarray = longArrayOf(0, 0, 0, 0, 0)
+                            var dayarray = longArrayOf(0, 0, 0, 0, 0)
                             // 构建文档列表
                             for (doc in querySnapshot.documents) {
                                 documents.add(doc)
                                 val timestamp = doc.getTimestamp("timestamp")
                                 val state = doc.getString("state")
                                 if (timestamp != null) {
-                                    if (counter == 0){
-                                        date_array.add( sdf.format(timestamp.toDate()).toString())
-                                        counter++
-                                    }else if (counter == 5){
-                                        Data.add(longarray)
-                                        counter = 0
-                                        longarray=longArrayOf(0,0,0,0,0)
-                                    }else counter++
-                                    when(state){
-                                        "Normal" -> longarray[0]++
-                                        "S" -> longarray[1]++
-                                        "V" -> longarray[2]++
-                                        "F" -> longarray[3]++
-                                        "Q" -> longarray[4]++
-                                    }
-                                    val date = timestamp.toDate()
-                                    val formattedDate = sdf.format(date)
-                                    val displayText = "$formattedDate - $state"
-                                    dataList.add(displayText)
+                                    record_data.add(
+                                        mutableListOf(
+                                            timestamp.seconds.toString(),
+                                            state
+                                        )
+                                    )
                                 }
-                            }
-//                            Log.d("wtf8181","dateArraysize"+date_array.size)
-//                            Log.d("wtf8181","datasize"+Data.size)
-                            if (date_array.size>Data.size) {
-                                date_array.removeAt(date_array.size-1)
-//                                Log.d("wtf8181","Data:"+Data.joinToString(", ") { it.joinToString(", ", "[", "]") })
-//                                Log.d("wtf8181","date_array:"+date_array)
-                            }
-                            adapter = ArrayAdapter<String>(requireContext(), android.R.layout.simple_list_item_1, dataList)
-//                            val listView = view.findViewById<ListView>(R.id.listview)
-//                            listView.adapter = adapter
-                            for (i in Data.indices) {
-                                val dataArray = Data[i]
-                                val stackedValues = mutableListOf<Float>()
-                                for (j in dataArray.indices){
-                                    stackedValues.add(dataArray[j].toFloat())
-                                }
-//                                Log.d("wtf8181","stack:"+stackedValues)
-//                                Log.d("wtf8181","i:"+i)
-                                entries.add(BarEntry(i.toFloat(), stackedValues.toFloatArray()))
                             }
 
-                            val barDataSet = BarDataSet(entries,"")
-                            barDataSet.setColors(Color.GREEN, Color.RED, Color.BLUE, Color.YELLOW, Color.CYAN)
-                            barDataSet.stackLabels = arrayOf("Normal", "S", "V", "F", "Q")
-                            barDataSet.setDrawValues(false)
-                            val barData = BarData(barDataSet)
-                            barData.barWidth = 0.1f
-                            barChart.data = barData
-                            barChart.setFitBars(true)
-//                            barChart.xAxis.position = (XAxis.XAxisPosition.BOTTOM)
-                            barChart.description.isEnabled = false
-                            barChart.xAxis.labelRotationAngle = 45f // 设置标签旋转角度
-                            barChart.xAxis.setDrawGridLines(false)
-                            barChart.axisRight.isEnabled = false
-                            barChart.xAxis.axisMinimum = 0F
-                            barChart.xAxis.axisMaximum = 6F
-//                            barChart.axisLeft.axisMaximum = 15F
-                            barChart.axisLeft.axisMinimum = 0F
-                            barChart.xAxis.setLabelCount(6,false)
-//                            barChart.axisLeft.setLabelCount(15,false)
-                            barChart.xAxis.axisMinimum = -0.5f
-                            val formatter = IndexAxisValueFormatter(date_array.toTypedArray())
-                            barChart.xAxis.valueFormatter = formatter
-                            barChart.invalidate()
                         }
                 }
             }
+
+    }
+
+    fun convertTimeToTimestamp(timeString: String): Long {
+        // 创建一个 SimpleDateFormat 对象，定义日期和时间格式
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+
+        try {
+            // 使用 SimpleDateFormat 解析日期和时间字符串，得到 Date 对象
+            val date = dateFormat.parse(timeString)
+
+            if (date != null) {
+                // 获取 Date 对象的时间戳（以毫秒为单位），并将其转换为秒
+                val timestamp = date.time / 1000
+                return timestamp
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return -1
+    }
+
+    fun getRecord(starttime: Long, unit: Int,view: View) {
+        if (unit == 0) {//24h
+
+        } else if (unit == 1) {//12h
+
+        } else if (unit == 2) {//1h
+            var Data = MutableList(6) { LongArray(5) }
+            var date_array = ArrayList<String>()
+            date_array.add("0")
+            date_array.add("10")
+            date_array.add("20")
+            date_array.add("30")
+            date_array.add("40")
+            date_array.add("50")
+            for (i in record_data.indices) {
+                if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 3600) {
+                    Log.d("wtf8181", "data:" + record_data[i][0] + ",state:" + record_data[i][1])
+                    if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 600) {
+                        Log.d("wtf8181","0~10分鐘")
+                        when(record_data[i][1]){
+                            "Normal"->Data[0][0]++
+                            "S"->Data[0][1]++
+                            "V"->Data[0][2]++
+                            "F"->Data[0][3]++
+                            "Q"->Data[0][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+600 && record_data[i][0]?.toLong()!! <= starttime + 1200) {
+                        Log.d("wtf8181","10~20分鐘")
+                        when(record_data[i][1]){
+                            "Normal"->Data[1][0]++
+                            "S"->Data[1][1]++
+                            "V"->Data[1][2]++
+                            "F"->Data[1][3]++
+                            "Q"->Data[1][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+1200 && record_data[i][0]?.toLong()!! <= starttime + 1800) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[2][0]++
+                            "S"->Data[2][1]++
+                            "V"->Data[2][2]++
+                            "F"->Data[2][3]++
+                            "Q"->Data[2][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+1800 && record_data[i][0]?.toLong()!! <= starttime + 2400) {
+                        Log.d("wtf8181","30~40分鐘")
+                        when(record_data[i][1]){
+                            "Normal"->Data[3][0]++
+                            "S"->Data[3][1]++
+                            "V"->Data[3][2]++
+                            "F"->Data[3][3]++
+                            "Q"->Data[3][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+2400 && record_data[i][0]?.toLong()!! <= starttime + 3000) {
+                        Log.d("wtf8181","40~50分鐘")
+                        when(record_data[i][1]){
+                            "Normal"->Data[4][0]++
+                            "S"->Data[4][1]++
+                            "V"->Data[4][2]++
+                            "F"->Data[4][3]++
+                            "Q"->Data[4][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+3000 && record_data[i][0]?.toLong()!! < starttime + 3600) {
+                        Log.d("wtf8181","50~60分鐘")
+                        when(record_data[i][1]){
+                            "Normal"->Data[5][0]++
+                            "S"->Data[5][1]++
+                            "V"->Data[5][2]++
+                            "F"->Data[5][3]++
+                            "Q"->Data[5][4]++
+                        }
+                    }
+                }
+            }
+            val barChart = view.findViewById<BarChart>(R.id.barChart)
+            val entries = ArrayList<BarEntry>()
+            for (i in Data.indices) {
+                val dataArray = Data[i]
+                val stackedValues = mutableListOf<Float>()
+                for (j in dataArray.indices) {
+                    stackedValues.add(dataArray[j].toFloat())
+                }
+//                                Log.d("wtf8181","stack:"+stackedValues)
+//                                Log.d("wtf8181","i:"+i)
+                entries.add(BarEntry(i.toFloat(), stackedValues.toFloatArray()))
+            }
+
+            val barDataSet = BarDataSet(entries, "")
+            barDataSet.setColors(
+                Color.GREEN,
+                Color.RED,
+                Color.BLUE,
+                Color.YELLOW,
+                Color.CYAN
+            )
+            barDataSet.stackLabels = arrayOf("Normal", "S", "V", "F", "Q")
+            barDataSet.setDrawValues(false)
+            val barData = BarData(barDataSet)
+            barData.barWidth = 0.1f
+            barChart.data = barData
+            barChart.setFitBars(true)
+            barChart.xAxis.position = (XAxis.XAxisPosition.BOTTOM)
+            barChart.description.isEnabled = false
+            barChart.xAxis.labelRotationAngle = 45f // 设置标签旋转角度
+            barChart.xAxis.setDrawGridLines(false)
+            barChart.axisRight.isEnabled = false
+            barChart.xAxis.axisMinimum = 0F
+            barChart.xAxis.axisMaximum = 6F
+//                            barChart.axisLeft.axisMaximum = 15F
+            barChart.axisLeft.axisMinimum = 0F
+            barChart.xAxis.setLabelCount(6, false)
+//                            barChart.axisLeft.setLabelCount(15,false)
+            barChart.xAxis.axisMinimum = -0.5f
+            val formatter = IndexAxisValueFormatter(date_array.toTypedArray())
+            barChart.xAxis.valueFormatter = formatter
+            barChart.invalidate()
+        } else Log.d("wtf8181", "getRecord Wrong")
 
     }
 
@@ -295,7 +388,7 @@ class RecordFragment : Fragment() {
             calendar.get(Calendar.MONTH),
             calendar.get(Calendar.DAY_OF_MONTH)
         ) { _, year, monthOfYear, dayOfMonth ->
-            calendar.set(year,monthOfYear, dayOfMonth)
+            calendar.set(year, monthOfYear, dayOfMonth)
             var format = SimpleDateFormat("yyyy-MM-dd")
             choose_date = format.format(calendar.time)
             format = SimpleDateFormat("MM-dd")
@@ -311,11 +404,13 @@ class RecordFragment : Fragment() {
         ) { dialog, which -> dialog.dismiss() }
         dialog.show()
     }
+
     companion object {
         // TODO: Rename parameter arguments, choose names that match
         // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
         private const val ARG_PARAM1 = "param1"
         private const val ARG_PARAM2 = "param2"
+
         /**
          * Use this factory method to create a new instance oftaskkill /f /t
          * this fragment using the provided parameters.
@@ -334,6 +429,7 @@ class RecordFragment : Fragment() {
             return fragment
         }
     }
+
     data class MyData(
         val firstString: String? = null,
         val secondString: String? = null
