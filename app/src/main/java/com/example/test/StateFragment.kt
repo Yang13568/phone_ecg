@@ -348,9 +348,9 @@ class StateFragment : Fragment() {
         when (state) {
             BluetoothService.STATE_CONNECTED -> {
                 mStatusTextView.text = "Bluetooth Status:已連線"
-                mApText.text = "測量中"
+//                mApText.text = "測量中"
                 mStateText.text = "測量中"
-                mHourText.text = "測量中"
+//                mHourText.text = "測量中"
                 Log.d("BluetoothService", "handleBluetoothState: Connected")
             }
 

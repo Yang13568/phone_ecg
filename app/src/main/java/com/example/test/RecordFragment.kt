@@ -201,7 +201,7 @@ class RecordFragment : Fragment() {
                 Log.d("wtf8181", "choose_date:" + choose_date + ", choose_time:" + choose_time)
                 val choosetime = "$choose_date $choose_time:00:00"
                 val starttime = convertTimeToTimestamp(choosetime)
-                getRecord(starttime, choose_unit,view)
+                getRecord(starttime, choose_unit,choose_time,view)
             }
         }
         db.collection("USER")
@@ -259,11 +259,211 @@ class RecordFragment : Fragment() {
         return -1
     }
 
-    fun getRecord(starttime: Long, unit: Int,view: View) {
+    fun getRecord(starttime: Long, unit: Int, choosehour: Int,view: View) {
         if (unit == 0) {//24h
+            var Data = MutableList(6) { LongArray(5) }
+            var date_array = ArrayList<String>()
+            for (i in 0..5){
+                var x = choosehour+(i*4)
+                if (x>=24) x -=24
+                date_array.add(x.toString())
+            }
+            for (i in record_data.indices) {
+                if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 86400) {
+                    Log.d("wtf8181", "data:" + record_data[i][0] + ",state:" + record_data[i][1])
+                    if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 14400) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[0][0]++
+                            "S"->Data[0][1]++
+                            "V"->Data[0][2]++
+                            "F"->Data[0][3]++
+                            "Q"->Data[0][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+14400 && record_data[i][0]?.toLong()!! <= starttime + 28800) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[1][0]++
+                            "S"->Data[1][1]++
+                            "V"->Data[1][2]++
+                            "F"->Data[1][3]++
+                            "Q"->Data[1][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+28800 && record_data[i][0]?.toLong()!! <= starttime + 43200) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[2][0]++
+                            "S"->Data[2][1]++
+                            "V"->Data[2][2]++
+                            "F"->Data[2][3]++
+                            "Q"->Data[2][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+43200 && record_data[i][0]?.toLong()!! <= starttime + 57600) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[3][0]++
+                            "S"->Data[3][1]++
+                            "V"->Data[3][2]++
+                            "F"->Data[3][3]++
+                            "Q"->Data[3][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+57600 && record_data[i][0]?.toLong()!! <= starttime + 72000) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[4][0]++
+                            "S"->Data[4][1]++
+                            "V"->Data[4][2]++
+                            "F"->Data[4][3]++
+                            "Q"->Data[4][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+72000 && record_data[i][0]?.toLong()!! < starttime + 86400) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[5][0]++
+                            "S"->Data[5][1]++
+                            "V"->Data[5][2]++
+                            "F"->Data[5][3]++
+                            "Q"->Data[5][4]++
+                        }
+                    }
+                }
+            }
+            val barChart = view.findViewById<BarChart>(R.id.barChart)
+            val entries = ArrayList<BarEntry>()
+            for (i in Data.indices) {
+                val dataArray = Data[i]
+                val stackedValues = mutableListOf<Float>()
+                for (j in dataArray.indices) {
+                    stackedValues.add(dataArray[j].toFloat())
+                }
+                entries.add(BarEntry(i.toFloat(), stackedValues.toFloatArray()))
+            }
 
+            val barDataSet = BarDataSet(entries, "")
+            barDataSet.setColors(
+                Color.GREEN,
+                Color.RED,
+                Color.MAGENTA,
+                Color.YELLOW,
+                Color.DKGRAY
+            )
+            barDataSet.stackLabels = arrayOf("Normal", "S", "V", "F", "Q")
+            barDataSet.setDrawValues(false)
+            val barData = BarData(barDataSet)
+            barChart.legend.textSize = 20f
+            barData.barWidth = 0.1f
+            barChart.data = barData
+            barChart.setFitBars(true)
+            barChart.xAxis.position = (XAxis.XAxisPosition.BOTTOM)
+            barChart.description.isEnabled = false
+            barChart.xAxis.setDrawGridLines(false)
+            barChart.axisRight.isEnabled = false
+            barChart.xAxis.axisMinimum = 0F
+            barChart.xAxis.axisMaximum = 6F
+//                            barChart.axisLeft.axisMaximum = 15F
+            barChart.axisLeft.axisMinimum = 0F
+            barChart.xAxis.setLabelCount(6, false)
+//                            barChart.axisLeft.setLabelCount(15,false)
+            barChart.xAxis.axisMinimum = -0.5f
+            val formatter = IndexAxisValueFormatter(date_array.toTypedArray())
+            barChart.xAxis.valueFormatter = formatter
+            barChart.invalidate()
         } else if (unit == 1) {//12h
+            var Data = MutableList(6) { LongArray(5) }
+            var date_array = ArrayList<String>()
+            for (i in 0..5){
+                var x = choosehour+(i*2)
+                if (x>=24)x-=24
+                date_array.add(x.toString())
+            }
+            for (i in record_data.indices) {
+                if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 43200) {
+                    Log.d("wtf8181", "data:" + record_data[i][0] + ",state:" + record_data[i][1])
+                    if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 7200) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[0][0]++
+                            "S"->Data[0][1]++
+                            "V"->Data[0][2]++
+                            "F"->Data[0][3]++
+                            "Q"->Data[0][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+7200 && record_data[i][0]?.toLong()!! <= starttime + 14400) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[1][0]++
+                            "S"->Data[1][1]++
+                            "V"->Data[1][2]++
+                            "F"->Data[1][3]++
+                            "Q"->Data[1][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+14400 && record_data[i][0]?.toLong()!! <= starttime + 21600) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[2][0]++
+                            "S"->Data[2][1]++
+                            "V"->Data[2][2]++
+                            "F"->Data[2][3]++
+                            "Q"->Data[2][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+21600 && record_data[i][0]?.toLong()!! <= starttime + 28800) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[3][0]++
+                            "S"->Data[3][1]++
+                            "V"->Data[3][2]++
+                            "F"->Data[3][3]++
+                            "Q"->Data[3][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+28800 && record_data[i][0]?.toLong()!! <= starttime + 36000) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[4][0]++
+                            "S"->Data[4][1]++
+                            "V"->Data[4][2]++
+                            "F"->Data[4][3]++
+                            "Q"->Data[4][4]++
+                        }
+                    }else if (record_data[i][0]?.toLong()!! > starttime+36000 && record_data[i][0]?.toLong()!! < starttime + 43200) {
+                        when(record_data[i][1]){
+                            "Normal"->Data[5][0]++
+                            "S"->Data[5][1]++
+                            "V"->Data[5][2]++
+                            "F"->Data[5][3]++
+                            "Q"->Data[5][4]++
+                        }
+                    }
+                }
+            }
+            val barChart = view.findViewById<BarChart>(R.id.barChart)
+            val entries = ArrayList<BarEntry>()
+            for (i in Data.indices) {
+                val dataArray = Data[i]
+                val stackedValues = mutableListOf<Float>()
+                for (j in dataArray.indices) {
+                    stackedValues.add(dataArray[j].toFloat())
+                }
+                entries.add(BarEntry(i.toFloat(), stackedValues.toFloatArray()))
+            }
 
+            val barDataSet = BarDataSet(entries, "")
+            barDataSet.setColors(
+                Color.GREEN,
+                Color.RED,
+                Color.MAGENTA,
+                Color.YELLOW,
+                Color.DKGRAY
+            )
+            barDataSet.stackLabels = arrayOf("Normal", "S", "V", "F", "Q")
+            barDataSet.setDrawValues(false)
+            val barData = BarData(barDataSet)
+            barChart.legend.textSize = 20f
+            barData.barWidth = 0.1f
+            barChart.data = barData
+            barChart.setFitBars(true)
+            barChart.xAxis.position = (XAxis.XAxisPosition.BOTTOM)
+            barChart.description.isEnabled = false
+            barChart.xAxis.setDrawGridLines(false)
+            barChart.axisRight.isEnabled = false
+            barChart.xAxis.axisMinimum = 0F
+            barChart.xAxis.axisMaximum = 6F
+//                            barChart.axisLeft.axisMaximum = 15F
+            barChart.axisLeft.axisMinimum = 0F
+            barChart.xAxis.setLabelCount(6, false)
+//                            barChart.axisLeft.setLabelCount(15,false)
+            barChart.xAxis.axisMinimum = -0.5f
+            val formatter = IndexAxisValueFormatter(date_array.toTypedArray())
+            barChart.xAxis.valueFormatter = formatter
+            barChart.invalidate()
         } else if (unit == 2) {//1h
             var Data = MutableList(6) { LongArray(5) }
             var date_array = ArrayList<String>()
@@ -277,7 +477,6 @@ class RecordFragment : Fragment() {
                 if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 3600) {
                     Log.d("wtf8181", "data:" + record_data[i][0] + ",state:" + record_data[i][1])
                     if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 600) {
-                        Log.d("wtf8181","0~10分鐘")
                         when(record_data[i][1]){
                             "Normal"->Data[0][0]++
                             "S"->Data[0][1]++
@@ -286,7 +485,6 @@ class RecordFragment : Fragment() {
                             "Q"->Data[0][4]++
                         }
                     }else if (record_data[i][0]?.toLong()!! > starttime+600 && record_data[i][0]?.toLong()!! <= starttime + 1200) {
-                        Log.d("wtf8181","10~20分鐘")
                         when(record_data[i][1]){
                             "Normal"->Data[1][0]++
                             "S"->Data[1][1]++
@@ -303,7 +501,6 @@ class RecordFragment : Fragment() {
                             "Q"->Data[2][4]++
                         }
                     }else if (record_data[i][0]?.toLong()!! > starttime+1800 && record_data[i][0]?.toLong()!! <= starttime + 2400) {
-                        Log.d("wtf8181","30~40分鐘")
                         when(record_data[i][1]){
                             "Normal"->Data[3][0]++
                             "S"->Data[3][1]++
@@ -312,7 +509,6 @@ class RecordFragment : Fragment() {
                             "Q"->Data[3][4]++
                         }
                     }else if (record_data[i][0]?.toLong()!! > starttime+2400 && record_data[i][0]?.toLong()!! <= starttime + 3000) {
-                        Log.d("wtf8181","40~50分鐘")
                         when(record_data[i][1]){
                             "Normal"->Data[4][0]++
                             "S"->Data[4][1]++
@@ -321,7 +517,6 @@ class RecordFragment : Fragment() {
                             "Q"->Data[4][4]++
                         }
                     }else if (record_data[i][0]?.toLong()!! > starttime+3000 && record_data[i][0]?.toLong()!! < starttime + 3600) {
-                        Log.d("wtf8181","50~60分鐘")
                         when(record_data[i][1]){
                             "Normal"->Data[5][0]++
                             "S"->Data[5][1]++
@@ -349,19 +544,19 @@ class RecordFragment : Fragment() {
             barDataSet.setColors(
                 Color.GREEN,
                 Color.RED,
-                Color.BLUE,
+                Color.MAGENTA,
                 Color.YELLOW,
-                Color.CYAN
+                Color.DKGRAY
             )
             barDataSet.stackLabels = arrayOf("Normal", "S", "V", "F", "Q")
             barDataSet.setDrawValues(false)
             val barData = BarData(barDataSet)
+            barChart.legend.textSize = 20f
             barData.barWidth = 0.1f
             barChart.data = barData
             barChart.setFitBars(true)
             barChart.xAxis.position = (XAxis.XAxisPosition.BOTTOM)
             barChart.description.isEnabled = false
-            barChart.xAxis.labelRotationAngle = 45f // 设置标签旋转角度
             barChart.xAxis.setDrawGridLines(false)
             barChart.axisRight.isEnabled = false
             barChart.xAxis.axisMinimum = 0F
