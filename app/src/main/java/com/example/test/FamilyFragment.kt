@@ -42,6 +42,7 @@ class FamilyFragment : Fragment() {
     private var iheart_count = 0
     private var heartList = ArrayList<Float>()
     private var mHeartText = heart_textview
+    private var isVariableTrue = true
 
     @SuppressLint("NewApi")
     override fun onCreateView(
@@ -71,7 +72,10 @@ class FamilyFragment : Fragment() {
         startChartUpdate()
 
     }
-
+    override fun onDestroy() {
+        super.onDestroy()
+        isVariableTrue = false
+    }
 
     private fun startChartUpdate() {
         if (csvList.isNotEmpty()) {
@@ -103,7 +107,7 @@ class FamilyFragment : Fragment() {
                                     heartList.add(row[i])
                                     iapnea_count += 1
                                     iheart_count += 1
-                                    if (iapnea_count == 6000) {
+                                    if (iapnea_count == 6000 && isVariableTrue == true) {
                                         val apnea_result =
                                             run_apnea_Model(apneaList, "apnea_7672.tflite")
                                         if (apnea_result == 0) {
@@ -116,7 +120,7 @@ class FamilyFragment : Fragment() {
                                         iapnea_count = 0
                                         apneaList.clear()
                                     }
-                                    if (iheart_count == 100) {
+                                    if (iheart_count == 100 && isVariableTrue==true) {
                                         val after_heartList = linearInterpolation2(heartList,360)
                                         val heart_result =
                                             after_heartList?.let { run_apnea_Model(it, "model_9532.tflite") }
@@ -296,5 +300,3 @@ class FamilyFragment : Fragment() {
         return interpolatedData
     }
 }
-//vnvnnvvnnnvn    5v 7n
-//vvnnnsvnvvvs    6v4n2s

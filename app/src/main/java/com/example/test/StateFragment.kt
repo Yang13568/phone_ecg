@@ -337,7 +337,7 @@ class StateFragment : Fragment() {
                 mChartView.ClearChart()
                 mIhrText.text = "0"
                 mTeText.text = "0.0"
-                mApText.text = "等待連線"
+//                mApText.text = "等待連線"
                 mStateText.text = "等待連線"
             }
         }
@@ -436,7 +436,7 @@ class StateFragment : Fragment() {
                     }
                     if (toastMessage != null) {
                         State_array.add(toastMessage)
-//                        Log.d("wtf8181","judge:"+toastMessage)
+                        Log.d("wtf8181","judge:"+toastMessage)
                     }///////////////////////////////////////////////
                     val toastMessagenormalize = when (statenormalize[i]) {
                         0 -> "Normal"
@@ -448,7 +448,7 @@ class StateFragment : Fragment() {
                     }
                     if (toastMessage != null) {
                         State_array.add(toastMessage)
-//                        Log.d("wtf8181","judgenormalize:"+toastMessagenormalize)
+                        Log.d("wtf8181","judgenormalize:"+toastMessagenormalize)
 
                         mtestText.text = toastMessagenormalize
                     }///////////////////////////////////////////////////////////////

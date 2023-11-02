@@ -54,7 +54,7 @@ class StateService(context: Context?, handler: Handler) {
         var herttype = 0
 
         // 執行畫圖的 Runnable
-        val tflite = Interpreter(loadModelFile("model_9532.tflite", stateContext!!), null)
+        val tflite = Interpreter(loadModelFile("model_9750.tflite", stateContext!!), null)
 
         // 定義輸入張量和輸出張量的形狀
         val inputShape = intArrayOf(1, 360) // 輸入張量的形狀
