@@ -61,6 +61,7 @@ class RecordFragment : Fragment() {
     private var mbarchart: BarChart? = null
     private var choose_date = ""
     private var record_data = mutableListOf<MutableList<String?>>()
+    private var apnea_record_data = mutableListOf<MutableList<String?>>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (arguments != null) {
@@ -198,12 +199,12 @@ class RecordFragment : Fragment() {
         }
         btn_search.setOnClickListener {
             if (choose_date != "" && choose_time != -1 && choose_mod != -1 && choose_unit != -1) {
-                Log.d("wtf8181", "choose_date:" + choose_date + ", choose_time:" + choose_time)
                 val choosetime = "$choose_date $choose_time:00:00"
                 val starttime = convertTimeToTimestamp(choosetime)
-                getRecord(starttime, choose_unit,choose_time,view)
+                getRecord(starttime, choose_unit, choose_time, choose_mod,view)
             }
         }
+        //HeartRecord
         db.collection("USER")
             .whereEqualTo("userEmail", email)
             .get()
@@ -217,8 +218,6 @@ class RecordFragment : Fragment() {
                         .orderBy("timestamp", Query.Direction.ASCENDING)
                         .get()
                         .addOnSuccessListener { querySnapshot ->
-                            var halfdayarray = longArrayOf(0, 0, 0, 0, 0)
-                            var dayarray = longArrayOf(0, 0, 0, 0, 0)
                             // 构建文档列表
                             for (doc in querySnapshot.documents) {
                                 documents.add(doc)
@@ -237,7 +236,38 @@ class RecordFragment : Fragment() {
                         }
                 }
             }
+        //ApneaRecord
+        db.collection("USER")
+            .whereEqualTo("userEmail", email)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                for (document in querySnapshot.documents) {
+                    val documentId = document.id
+                    val userRef = db.collection("USER").document(documentId)
+                    dataList = mutableListOf()
+                    // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
+                    userRef.collection("apneaRecord")
+                        .orderBy("timestamp", Query.Direction.ASCENDING)
+                        .get()
+                        .addOnSuccessListener { querySnapshot ->
+                            // 构建文档列表
+                            for (doc in querySnapshot.documents) {
+                                documents.add(doc)
+                                val timestamp = doc.getTimestamp("timestamp")
+                                val state = doc.getLong("state")?.toString()
+                                if (timestamp != null) {
+                                    apnea_record_data.add(
+                                        mutableListOf(
+                                            timestamp.seconds.toString(),
+                                            state
+                                        )
+                                    )
+                                }
+                            }
 
+                        }
+                }
+            }
     }
 
     fun convertTimeToTimestamp(timeString: String): Long {
@@ -259,318 +289,352 @@ class RecordFragment : Fragment() {
         return -1
     }
 
-    fun getRecord(starttime: Long, unit: Int, choosehour: Int,view: View) {
-        if (unit == 0) {//24h
-            var Data = MutableList(6) { LongArray(5) }
-            var date_array = ArrayList<String>()
-            for (i in 0..5){
-                var x = choosehour+(i*4)
-                if (x>=24) x -=24
-                date_array.add(x.toString())
-            }
-            for (i in record_data.indices) {
-                if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 86400) {
-                    Log.d("wtf8181", "data:" + record_data[i][0] + ",state:" + record_data[i][1])
-                    if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 14400) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[0][0]++
-                            "S"->Data[0][1]++
-                            "V"->Data[0][2]++
-                            "F"->Data[0][3]++
-                            "Q"->Data[0][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+14400 && record_data[i][0]?.toLong()!! <= starttime + 28800) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[1][0]++
-                            "S"->Data[1][1]++
-                            "V"->Data[1][2]++
-                            "F"->Data[1][3]++
-                            "Q"->Data[1][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+28800 && record_data[i][0]?.toLong()!! <= starttime + 43200) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[2][0]++
-                            "S"->Data[2][1]++
-                            "V"->Data[2][2]++
-                            "F"->Data[2][3]++
-                            "Q"->Data[2][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+43200 && record_data[i][0]?.toLong()!! <= starttime + 57600) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[3][0]++
-                            "S"->Data[3][1]++
-                            "V"->Data[3][2]++
-                            "F"->Data[3][3]++
-                            "Q"->Data[3][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+57600 && record_data[i][0]?.toLong()!! <= starttime + 72000) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[4][0]++
-                            "S"->Data[4][1]++
-                            "V"->Data[4][2]++
-                            "F"->Data[4][3]++
-                            "Q"->Data[4][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+72000 && record_data[i][0]?.toLong()!! < starttime + 86400) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[5][0]++
-                            "S"->Data[5][1]++
-                            "V"->Data[5][2]++
-                            "F"->Data[5][3]++
-                            "Q"->Data[5][4]++
+    fun getRecord(starttime: Long, unit: Int, choosehour: Int, mode: Int, view: View) {
+        if (mode == 1) {
+            Log.d("wtf8181","睡眠呼吸中止")
+            if (unit == 0){
+                var Data = MutableList(6) { LongArray(2) }
+                var date_array = ArrayList<String>()
+                for (i in 0..5) {
+                    var x = choosehour + (i * 4)
+                    if (x >= 24) x -= 24
+                    date_array.add(x.toString())
+                }
+                for (i in apnea_record_data.indices) {
+                    if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 86400) {
+                        if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 14400) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[0][0]++
+                                "1" -> Data[0][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 14400 && apnea_record_data[i][0]?.toLong()!! <= starttime + 28800) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[1][0]++
+                                "1" -> Data[1][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 28800 && apnea_record_data[i][0]?.toLong()!! <= starttime + 43200) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[2][0]++
+                                "1" -> Data[2][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 43200 && apnea_record_data[i][0]?.toLong()!! <= starttime + 57600) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[3][0]++
+                                "1" -> Data[3][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 57600 && apnea_record_data[i][0]?.toLong()!! <= starttime + 72000) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[4][0]++
+                                "1" -> Data[4][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 72000 && apnea_record_data[i][0]?.toLong()!! < starttime + 86400) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[5][0]++
+                                "1" -> Data[5][1]++
+                            }
                         }
                     }
                 }
-            }
-            val barChart = view.findViewById<BarChart>(R.id.barChart)
-            val entries = ArrayList<BarEntry>()
-            for (i in Data.indices) {
-                val dataArray = Data[i]
-                val stackedValues = mutableListOf<Float>()
-                for (j in dataArray.indices) {
-                    stackedValues.add(dataArray[j].toFloat())
+                drawchart(view, Data, date_array,mode)
+            }else if(unit==1){
+                var Data = MutableList(6) { LongArray(2) }
+                var date_array = ArrayList<String>()
+                for (i in 0..5) {
+                    var x = choosehour + (i * 2)
+                    if (x >= 24) x -= 24
+                    date_array.add(x.toString())
                 }
-                entries.add(BarEntry(i.toFloat(), stackedValues.toFloatArray()))
-            }
-
-            val barDataSet = BarDataSet(entries, "")
-            barDataSet.setColors(
-                Color.GREEN,
-                Color.RED,
-                Color.MAGENTA,
-                Color.YELLOW,
-                Color.DKGRAY
-            )
-            barDataSet.stackLabels = arrayOf("Normal", "S", "V", "F", "Q")
-            barDataSet.setDrawValues(false)
-            val barData = BarData(barDataSet)
-            barChart.legend.textSize = 20f
-            barData.barWidth = 0.1f
-            barChart.data = barData
-            barChart.setFitBars(true)
-            barChart.xAxis.position = (XAxis.XAxisPosition.BOTTOM)
-            barChart.description.isEnabled = false
-            barChart.xAxis.setDrawGridLines(false)
-            barChart.axisRight.isEnabled = false
-            barChart.xAxis.axisMinimum = 0F
-            barChart.xAxis.axisMaximum = 6F
-//                            barChart.axisLeft.axisMaximum = 15F
-            barChart.axisLeft.axisMinimum = 0F
-            barChart.xAxis.setLabelCount(6, false)
-//                            barChart.axisLeft.setLabelCount(15,false)
-            barChart.xAxis.axisMinimum = -0.5f
-            val formatter = IndexAxisValueFormatter(date_array.toTypedArray())
-            barChart.xAxis.valueFormatter = formatter
-            barChart.invalidate()
-        } else if (unit == 1) {//12h
-            var Data = MutableList(6) { LongArray(5) }
-            var date_array = ArrayList<String>()
-            for (i in 0..5){
-                var x = choosehour+(i*2)
-                if (x>=24)x-=24
-                date_array.add(x.toString())
-            }
-            for (i in record_data.indices) {
-                if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 43200) {
-                    Log.d("wtf8181", "data:" + record_data[i][0] + ",state:" + record_data[i][1])
-                    if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 7200) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[0][0]++
-                            "S"->Data[0][1]++
-                            "V"->Data[0][2]++
-                            "F"->Data[0][3]++
-                            "Q"->Data[0][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+7200 && record_data[i][0]?.toLong()!! <= starttime + 14400) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[1][0]++
-                            "S"->Data[1][1]++
-                            "V"->Data[1][2]++
-                            "F"->Data[1][3]++
-                            "Q"->Data[1][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+14400 && record_data[i][0]?.toLong()!! <= starttime + 21600) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[2][0]++
-                            "S"->Data[2][1]++
-                            "V"->Data[2][2]++
-                            "F"->Data[2][3]++
-                            "Q"->Data[2][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+21600 && record_data[i][0]?.toLong()!! <= starttime + 28800) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[3][0]++
-                            "S"->Data[3][1]++
-                            "V"->Data[3][2]++
-                            "F"->Data[3][3]++
-                            "Q"->Data[3][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+28800 && record_data[i][0]?.toLong()!! <= starttime + 36000) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[4][0]++
-                            "S"->Data[4][1]++
-                            "V"->Data[4][2]++
-                            "F"->Data[4][3]++
-                            "Q"->Data[4][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+36000 && record_data[i][0]?.toLong()!! < starttime + 43200) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[5][0]++
-                            "S"->Data[5][1]++
-                            "V"->Data[5][2]++
-                            "F"->Data[5][3]++
-                            "Q"->Data[5][4]++
+                for (i in apnea_record_data.indices) {
+                    if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 43200) {
+                        if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 7200) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[0][0]++
+                                "1" -> Data[0][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 7200 && apnea_record_data[i][0]?.toLong()!! <= starttime + 14400) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[1][0]++
+                                "1" -> Data[1][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 14400 && apnea_record_data[i][0]?.toLong()!! <= starttime + 21600) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[2][0]++
+                                "1" -> Data[2][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 21600 && apnea_record_data[i][0]?.toLong()!! <= starttime + 28800) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[3][0]++
+                                "1" -> Data[3][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 28800 && apnea_record_data[i][0]?.toLong()!! <= starttime + 36000) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[4][0]++
+                                "1" -> Data[4][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 36000 && apnea_record_data[i][0]?.toLong()!! < starttime + 43200) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[5][0]++
+                                "1" -> Data[5][1]++
+                            }
                         }
                     }
                 }
-            }
-            val barChart = view.findViewById<BarChart>(R.id.barChart)
-            val entries = ArrayList<BarEntry>()
-            for (i in Data.indices) {
-                val dataArray = Data[i]
-                val stackedValues = mutableListOf<Float>()
-                for (j in dataArray.indices) {
-                    stackedValues.add(dataArray[j].toFloat())
-                }
-                entries.add(BarEntry(i.toFloat(), stackedValues.toFloatArray()))
-            }
-
-            val barDataSet = BarDataSet(entries, "")
-            barDataSet.setColors(
-                Color.GREEN,
-                Color.RED,
-                Color.MAGENTA,
-                Color.YELLOW,
-                Color.DKGRAY
-            )
-            barDataSet.stackLabels = arrayOf("Normal", "S", "V", "F", "Q")
-            barDataSet.setDrawValues(false)
-            val barData = BarData(barDataSet)
-            barChart.legend.textSize = 20f
-            barData.barWidth = 0.1f
-            barChart.data = barData
-            barChart.setFitBars(true)
-            barChart.xAxis.position = (XAxis.XAxisPosition.BOTTOM)
-            barChart.description.isEnabled = false
-            barChart.xAxis.setDrawGridLines(false)
-            barChart.axisRight.isEnabled = false
-            barChart.xAxis.axisMinimum = 0F
-            barChart.xAxis.axisMaximum = 6F
-//                            barChart.axisLeft.axisMaximum = 15F
-            barChart.axisLeft.axisMinimum = 0F
-            barChart.xAxis.setLabelCount(6, false)
-//                            barChart.axisLeft.setLabelCount(15,false)
-            barChart.xAxis.axisMinimum = -0.5f
-            val formatter = IndexAxisValueFormatter(date_array.toTypedArray())
-            barChart.xAxis.valueFormatter = formatter
-            barChart.invalidate()
-        } else if (unit == 2) {//1h
-            var Data = MutableList(6) { LongArray(5) }
-            var date_array = ArrayList<String>()
-            date_array.add("0")
-            date_array.add("10")
-            date_array.add("20")
-            date_array.add("30")
-            date_array.add("40")
-            date_array.add("50")
-            for (i in record_data.indices) {
-                if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 3600) {
-                    Log.d("wtf8181", "data:" + record_data[i][0] + ",state:" + record_data[i][1])
-                    if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 600) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[0][0]++
-                            "S"->Data[0][1]++
-                            "V"->Data[0][2]++
-                            "F"->Data[0][3]++
-                            "Q"->Data[0][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+600 && record_data[i][0]?.toLong()!! <= starttime + 1200) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[1][0]++
-                            "S"->Data[1][1]++
-                            "V"->Data[1][2]++
-                            "F"->Data[1][3]++
-                            "Q"->Data[1][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+1200 && record_data[i][0]?.toLong()!! <= starttime + 1800) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[2][0]++
-                            "S"->Data[2][1]++
-                            "V"->Data[2][2]++
-                            "F"->Data[2][3]++
-                            "Q"->Data[2][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+1800 && record_data[i][0]?.toLong()!! <= starttime + 2400) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[3][0]++
-                            "S"->Data[3][1]++
-                            "V"->Data[3][2]++
-                            "F"->Data[3][3]++
-                            "Q"->Data[3][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+2400 && record_data[i][0]?.toLong()!! <= starttime + 3000) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[4][0]++
-                            "S"->Data[4][1]++
-                            "V"->Data[4][2]++
-                            "F"->Data[4][3]++
-                            "Q"->Data[4][4]++
-                        }
-                    }else if (record_data[i][0]?.toLong()!! > starttime+3000 && record_data[i][0]?.toLong()!! < starttime + 3600) {
-                        when(record_data[i][1]){
-                            "Normal"->Data[5][0]++
-                            "S"->Data[5][1]++
-                            "V"->Data[5][2]++
-                            "F"->Data[5][3]++
-                            "Q"->Data[5][4]++
+                drawchart(view, Data, date_array,mode)
+            }else if(unit==2){
+                var Data = MutableList(6) { LongArray(2) }
+                var date_array = ArrayList<String>()
+                date_array.add("0")
+                date_array.add("10")
+                date_array.add("20")
+                date_array.add("30")
+                date_array.add("40")
+                date_array.add("50")
+                for (i in apnea_record_data.indices) {
+                    if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 3600) {
+                        if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 600) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[0][0]++
+                                "1" -> Data[0][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 600 && apnea_record_data[i][0]?.toLong()!! <= starttime + 1200) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[1][0]++
+                                "1" -> Data[1][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 1200 && apnea_record_data[i][0]?.toLong()!! <= starttime + 1800) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[2][0]++
+                                "1" -> Data[2][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 1800 && apnea_record_data[i][0]?.toLong()!! <= starttime + 2400) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[3][0]++
+                                "1" -> Data[3][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 2400 && apnea_record_data[i][0]?.toLong()!! <= starttime + 3000) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[4][0]++
+                                "1" -> Data[4][1]++
+                            }
+                        } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 3000 && apnea_record_data[i][0]?.toLong()!! < starttime + 3600) {
+                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            when (apnea_record_data[i][1]) {
+                                "0" -> Data[5][0]++
+                                "1" -> Data[5][1]++
+                            }
                         }
                     }
                 }
+                drawchart(view, Data, date_array,mode)
             }
-            val barChart = view.findViewById<BarChart>(R.id.barChart)
-            val entries = ArrayList<BarEntry>()
-            for (i in Data.indices) {
-                val dataArray = Data[i]
-                val stackedValues = mutableListOf<Float>()
-                for (j in dataArray.indices) {
-                    stackedValues.add(dataArray[j].toFloat())
+        } else if (mode == 0) {
+            Log.d("wtf8181","心律不整")
+            if (unit == 0) {//24h
+                var Data = MutableList(6) { LongArray(5) }
+                var date_array = ArrayList<String>()
+                for (i in 0..5) {
+                    var x = choosehour + (i * 4)
+                    if (x >= 24) x -= 24
+                    date_array.add(x.toString())
                 }
-//                                Log.d("wtf8181","stack:"+stackedValues)
-//                                Log.d("wtf8181","i:"+i)
-                entries.add(BarEntry(i.toFloat(), stackedValues.toFloatArray()))
+                for (i in record_data.indices) {
+                    if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 86400) {
+                        if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 14400) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[0][0]++
+                                "S" -> Data[0][1]++
+                                "V" -> Data[0][2]++
+                                "F" -> Data[0][3]++
+                                "Q" -> Data[0][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 14400 && record_data[i][0]?.toLong()!! <= starttime + 28800) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[1][0]++
+                                "S" -> Data[1][1]++
+                                "V" -> Data[1][2]++
+                                "F" -> Data[1][3]++
+                                "Q" -> Data[1][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 28800 && record_data[i][0]?.toLong()!! <= starttime + 43200) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[2][0]++
+                                "S" -> Data[2][1]++
+                                "V" -> Data[2][2]++
+                                "F" -> Data[2][3]++
+                                "Q" -> Data[2][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 43200 && record_data[i][0]?.toLong()!! <= starttime + 57600) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[3][0]++
+                                "S" -> Data[3][1]++
+                                "V" -> Data[3][2]++
+                                "F" -> Data[3][3]++
+                                "Q" -> Data[3][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 57600 && record_data[i][0]?.toLong()!! <= starttime + 72000) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[4][0]++
+                                "S" -> Data[4][1]++
+                                "V" -> Data[4][2]++
+                                "F" -> Data[4][3]++
+                                "Q" -> Data[4][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 72000 && record_data[i][0]?.toLong()!! < starttime + 86400) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[5][0]++
+                                "S" -> Data[5][1]++
+                                "V" -> Data[5][2]++
+                                "F" -> Data[5][3]++
+                                "Q" -> Data[5][4]++
+                            }
+                        }
+                    }
+                }
+                drawchart(view, Data, date_array,mode)
+            } else if (unit == 1) {//12h
+                var Data = MutableList(6) { LongArray(5) }
+                var date_array = ArrayList<String>()
+                for (i in 0..5) {
+                    var x = choosehour + (i * 2)
+                    if (x >= 24) x -= 24
+                    date_array.add(x.toString())
+                }
+                for (i in record_data.indices) {
+                    if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 43200) {
+                        if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 7200) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[0][0]++
+                                "S" -> Data[0][1]++
+                                "V" -> Data[0][2]++
+                                "F" -> Data[0][3]++
+                                "Q" -> Data[0][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 7200 && record_data[i][0]?.toLong()!! <= starttime + 14400) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[1][0]++
+                                "S" -> Data[1][1]++
+                                "V" -> Data[1][2]++
+                                "F" -> Data[1][3]++
+                                "Q" -> Data[1][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 14400 && record_data[i][0]?.toLong()!! <= starttime + 21600) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[2][0]++
+                                "S" -> Data[2][1]++
+                                "V" -> Data[2][2]++
+                                "F" -> Data[2][3]++
+                                "Q" -> Data[2][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 21600 && record_data[i][0]?.toLong()!! <= starttime + 28800) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[3][0]++
+                                "S" -> Data[3][1]++
+                                "V" -> Data[3][2]++
+                                "F" -> Data[3][3]++
+                                "Q" -> Data[3][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 28800 && record_data[i][0]?.toLong()!! <= starttime + 36000) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[4][0]++
+                                "S" -> Data[4][1]++
+                                "V" -> Data[4][2]++
+                                "F" -> Data[4][3]++
+                                "Q" -> Data[4][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 36000 && record_data[i][0]?.toLong()!! < starttime + 43200) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[5][0]++
+                                "S" -> Data[5][1]++
+                                "V" -> Data[5][2]++
+                                "F" -> Data[5][3]++
+                                "Q" -> Data[5][4]++
+                            }
+                        }
+                    }
+                }
+                drawchart(view, Data, date_array,mode)
+            } else if (unit == 2) {//1h
+                var Data = MutableList(6) { LongArray(5) }
+                var date_array = ArrayList<String>()
+                date_array.add("0")
+                date_array.add("10")
+                date_array.add("20")
+                date_array.add("30")
+                date_array.add("40")
+                date_array.add("50")
+                for (i in record_data.indices) {
+                    if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 3600) {
+                        if (record_data[i][0]?.toLong()!! > starttime && record_data[i][0]?.toLong()!! <= starttime + 600) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[0][0]++
+                                "S" -> Data[0][1]++
+                                "V" -> Data[0][2]++
+                                "F" -> Data[0][3]++
+                                "Q" -> Data[0][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 600 && record_data[i][0]?.toLong()!! <= starttime + 1200) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[1][0]++
+                                "S" -> Data[1][1]++
+                                "V" -> Data[1][2]++
+                                "F" -> Data[1][3]++
+                                "Q" -> Data[1][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 1200 && record_data[i][0]?.toLong()!! <= starttime + 1800) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[2][0]++
+                                "S" -> Data[2][1]++
+                                "V" -> Data[2][2]++
+                                "F" -> Data[2][3]++
+                                "Q" -> Data[2][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 1800 && record_data[i][0]?.toLong()!! <= starttime + 2400) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[3][0]++
+                                "S" -> Data[3][1]++
+                                "V" -> Data[3][2]++
+                                "F" -> Data[3][3]++
+                                "Q" -> Data[3][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 2400 && record_data[i][0]?.toLong()!! <= starttime + 3000) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[4][0]++
+                                "S" -> Data[4][1]++
+                                "V" -> Data[4][2]++
+                                "F" -> Data[4][3]++
+                                "Q" -> Data[4][4]++
+                            }
+                        } else if (record_data[i][0]?.toLong()!! > starttime + 3000 && record_data[i][0]?.toLong()!! < starttime + 3600) {
+                            when (record_data[i][1]) {
+                                "Normal" -> Data[5][0]++
+                                "S" -> Data[5][1]++
+                                "V" -> Data[5][2]++
+                                "F" -> Data[5][3]++
+                                "Q" -> Data[5][4]++
+                            }
+                        }
+                    }
+                }
+                drawchart(view, Data, date_array,mode)
             }
-
-            val barDataSet = BarDataSet(entries, "")
-            barDataSet.setColors(
-                Color.GREEN,
-                Color.RED,
-                Color.MAGENTA,
-                Color.YELLOW,
-                Color.DKGRAY
-            )
-            barDataSet.stackLabels = arrayOf("Normal", "S", "V", "F", "Q")
-            barDataSet.setDrawValues(false)
-            val barData = BarData(barDataSet)
-            barChart.legend.textSize = 20f
-            barData.barWidth = 0.1f
-            barChart.data = barData
-            barChart.setFitBars(true)
-            barChart.xAxis.position = (XAxis.XAxisPosition.BOTTOM)
-            barChart.description.isEnabled = false
-            barChart.xAxis.setDrawGridLines(false)
-            barChart.axisRight.isEnabled = false
-            barChart.xAxis.axisMinimum = 0F
-            barChart.xAxis.axisMaximum = 6F
-//                            barChart.axisLeft.axisMaximum = 15F
-            barChart.axisLeft.axisMinimum = 0F
-            barChart.xAxis.setLabelCount(6, false)
-//                            barChart.axisLeft.setLabelCount(15,false)
-            barChart.xAxis.axisMinimum = -0.5f
-            val formatter = IndexAxisValueFormatter(date_array.toTypedArray())
-            barChart.xAxis.valueFormatter = formatter
-            barChart.invalidate()
         } else Log.d("wtf8181", "getRecord Wrong")
-
     }
 
     fun showDatePicker(context: Context, btn: Button) {
@@ -598,6 +662,57 @@ class RecordFragment : Fragment() {
             DialogInterface.BUTTON_POSITIVE, "OK"
         ) { dialog, which -> dialog.dismiss() }
         dialog.show()
+    }
+
+    fun drawchart(view: View, Data: MutableList<LongArray>, date_array: ArrayList<String>,mode: Int) {
+        val barChart = view.findViewById<BarChart>(R.id.barChart)
+        val entries = ArrayList<BarEntry>()
+        for (i in Data.indices) {
+            val dataArray = Data[i]
+            val stackedValues = mutableListOf<Float>()
+            for (j in dataArray.indices) {
+                stackedValues.add(dataArray[j].toFloat())
+            }
+            entries.add(BarEntry(i.toFloat(), stackedValues.toFloatArray()))
+        }
+
+        val barDataSet = BarDataSet(entries, "")
+        if (mode == 0) {
+            barDataSet.setColors(
+                Color.GREEN,
+                Color.RED,
+                Color.MAGENTA,
+                Color.YELLOW,
+                Color.DKGRAY
+            )
+            barDataSet.stackLabels = arrayOf("Normal", "S", "V", "F", "Q")
+        }else if(mode==1){
+            barDataSet.setColors(
+                Color.GREEN,
+                Color.RED
+            )
+            barDataSet.stackLabels = arrayOf("正常", "異常")
+        }
+        barDataSet.setDrawValues(false)
+        val barData = BarData(barDataSet)
+        barChart.legend.textSize = 20f
+        barData.barWidth = 0.5f
+        barChart.data = barData
+        barChart.setFitBars(true)
+        barChart.xAxis.position = (XAxis.XAxisPosition.BOTTOM)
+        barChart.description.isEnabled = false
+        barChart.xAxis.setDrawGridLines(false)
+        barChart.axisRight.isEnabled = false
+        barChart.xAxis.axisMinimum = 0F
+        barChart.xAxis.axisMaximum = 6F
+//                            barChart.axisLeft.axisMaximum = 15F
+        barChart.axisLeft.axisMinimum = 0F
+        barChart.xAxis.setLabelCount(6, false)
+//                            barChart.axisLeft.setLabelCount(15,false)
+        barChart.xAxis.axisMinimum = -0.5f
+        val formatter = IndexAxisValueFormatter(date_array.toTypedArray())
+        barChart.xAxis.valueFormatter = formatter
+        barChart.invalidate()
     }
 
     companion object {

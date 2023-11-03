@@ -63,7 +63,6 @@ class HomeFragment : Fragment() {
         var mail = view.findViewById<TextView>(R.id.textView2)
         var phone = view.findViewById<TextView>(R.id.textView3)
         var address = view.findViewById<TextView>(R.id.textView4)
-        var sub_btn = view.findViewById<Button>(R.id.ecg_sub)
         val db = FirebaseFirestore.getInstance()
         val ref = db.collection("USER")
         val query = ref.whereEqualTo("userEmail", email)
@@ -86,46 +85,7 @@ class HomeFragment : Fragment() {
         if (email != null) {
             viewModel.sharedData=email
         };
-        //按下上傳按鈕
-        sub_btn.setOnClickListener() {
-            //處理CSV
-            val inputStream = resources.openRawResource(R.raw.mitdb_360_test_ans)
-            val reader = BufferedReader(InputStreamReader(inputStream))
-            //val csvList = mutableListOf<List<Float>>()
 
-            reader.use {
-                var line = it.readLine() // 跳過首行標題
-                while (line != null) {
-                    val row = line.split(",") // 以逗號為分隔符號切割每行
-                    val floatList = row.map { it.toFloat() }
-                    csvList.add(floatList)
-                    line = it.readLine()
-                }
-            }
-            for (i in 0..199) {
-                val data = hashMapOf(
-                    "ecgData" to csvList[i]
-                )
-                db.collection("USER")
-                    .whereEqualTo("userEmail", email)
-                    .get()
-                    .addOnSuccessListener { querySnapshot ->
-                        for (document in querySnapshot.documents) {
-                            val documentId = document.id
-                            // 在這裡處理獲取到的文件 ID
-                            Log.d("Firestore", "對應的 ID 為：$documentId")
-                            db.collection("USER")
-                                .document(documentId)
-                                .collection("Ecg_Data")
-                                .add(data)
-                        }
-                    }
-                    .addOnFailureListener { e ->
-                        // 查詢失敗
-                        Log.e("Firestore", "查詢文件失敗：$e")
-                    }
-            }
-        }
     }
     @RequiresApi(Build.VERSION_CODES.S)
     private fun checkBluetoothPermissions() {
