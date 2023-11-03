@@ -15,8 +15,8 @@
         android:title="Record" />
     <item
         android:id="@+id/nav_family"
-        android:icon="@drawable/ic_family_24"
-        android:title="Family" />
+        android:icon="@drawable/ic_baseline_smart_display_24"
+        android:title="Simulation" />
     <item
         android:id="@+id/logout"
         android:icon="@drawable/ic_baseline_logout"

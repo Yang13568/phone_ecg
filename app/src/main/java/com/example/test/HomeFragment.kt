@@ -1,22 +1,27 @@
 package com.example.test
 
+import MyViewModel
+import android.annotation.SuppressLint
 import android.content.ContentValues.TAG
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Message
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
-import androidx.fragment.app.Fragment
-import android.content.pm.PackageManager
-import android.util.Log
 import android.widget.Button
+import android.widget.TextView
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import android.annotation.SuppressLint
-import android.os.Build
-import androidx.annotation.RequiresApi
 
 /**
  * A simple [Fragment] subclass.
@@ -30,6 +35,7 @@ class HomeFragment : Fragment() {
     private var mParam2: String? = null
     private var csvList = mutableListOf<List<Float>>()
     private val REQUEST_BLUETOOTH_PERMISSION = 1
+    private lateinit var viewModel: MyViewModel
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,6 +43,7 @@ class HomeFragment : Fragment() {
         if (arguments != null) {
             mParam1 = arguments!!.getString(ARG_PARAM1)
             mParam2 = arguments!!.getString(ARG_PARAM2)
+
         }
     }
 
@@ -56,7 +63,6 @@ class HomeFragment : Fragment() {
         var mail = view.findViewById<TextView>(R.id.textView2)
         var phone = view.findViewById<TextView>(R.id.textView3)
         var address = view.findViewById<TextView>(R.id.textView4)
-        var sub_btn = view.findViewById<Button>(R.id.ecg_sub)
         val db = FirebaseFirestore.getInstance()
         val ref = db.collection("USER")
         val query = ref.whereEqualTo("userEmail", email)
@@ -75,47 +81,11 @@ class HomeFragment : Fragment() {
             // 在此處處理查詢失敗的情況
             Log.d(TAG, "找不到此使用者")
         }
+        viewModel = ViewModelProvider(requireActivity()).get(MyViewModel::class.java)
+        if (email != null) {
+            viewModel.sharedData=email
+        };
 
-        //按下上傳按鈕
-        sub_btn.setOnClickListener() {
-            //處理CSV
-            val inputStream = resources.openRawResource(R.raw.mitdb_360_test_ans)
-            val reader = BufferedReader(InputStreamReader(inputStream))
-            //val csvList = mutableListOf<List<Float>>()
-
-            reader.use {
-                var line = it.readLine() // 跳過首行標題
-                while (line != null) {
-                    val row = line.split(",") // 以逗號為分隔符號切割每行
-                    val floatList = row.map { it.toFloat() }
-                    csvList.add(floatList)
-                    line = it.readLine()
-                }
-            }
-            for (i in 0..199) {
-                val data = hashMapOf(
-                    "ecgData" to csvList[i]
-                )
-                db.collection("USER")
-                    .whereEqualTo("userEmail", email)
-                    .get()
-                    .addOnSuccessListener { querySnapshot ->
-                        for (document in querySnapshot.documents) {
-                            val documentId = document.id
-                            // 在這裡處理獲取到的文件 ID
-                            Log.d("Firestore", "對應的 ID 為：$documentId")
-                            db.collection("USER")
-                                .document(documentId)
-                                .collection("Ecg_Data")
-                                .add(data)
-                        }
-                    }
-                    .addOnFailureListener { e ->
-                        // 查詢失敗
-                        Log.e("Firestore", "查詢文件失敗：$e")
-                    }
-            }
-        }
     }
     @RequiresApi(Build.VERSION_CODES.S)
     private fun checkBluetoothPermissions() {

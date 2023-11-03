@@ -9,8 +9,9 @@ import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
+import kotlin.math.sign
 
-class StateService(context: Context?, handler: Handler) {
+class ApneaService(context: Context?, handler: Handler) {
     private var mHandler: Handler?
     private var stateContext: Context?
 
@@ -29,36 +30,17 @@ class StateService(context: Context?, handler: Handler) {
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
     }
 
-    private fun m(array: FloatArray): Int {
-        var maxindex = -1
-        var maxnum = 0.0F
-        for (i in 0..4) {
-            if (array[i] > maxnum) {
-                maxnum = array[i]
-                maxindex = i
-            }
-        }
-        return maxindex
-    }
 
-//    private fun floatArrayToByteArray(inputData: FloatArray): ByteArray {
-//        val buffer = ByteBuffer.allocate(inputData.size * 4) // 每个浮点数占用4个字节
-//        buffer.order(ByteOrder.nativeOrder())
-//        for (value in inputData) {
-//            buffer.putFloat(value)
-//        }
-//        return buffer.array()
-//    }
 
     fun runModel(rawData: ByteArray):Int {
         var herttype = 0
 
         // 執行畫圖的 Runnable
-        val tflite = Interpreter(loadModelFile("model_9750.tflite", stateContext!!), null)
+        val tflite = Interpreter(loadModelFile("apnea_7672.tflite", stateContext!!), null)
 
         // 定義輸入張量和輸出張量的形狀
-        val inputShape = intArrayOf(1, 360) // 輸入張量的形狀
-        val outputShape = intArrayOf(1, 5) // 輸出張量的形狀
+        val inputShape = intArrayOf(1, 6000) // 輸入張量的形狀
+        val outputShape = intArrayOf(1, 2) // 輸出張量的形狀
 
         // 建立並準備輸入張量
         val inputTensor = prepareInputTensor(inputShape, rawData)
@@ -69,11 +51,15 @@ class StateService(context: Context?, handler: Handler) {
 
         // 獲取輸出數據並執行 m 函式
         val outputData = outputTensor.floatArray
-        for(data in outputData){
-            Log.d("interLog", "DataHandler interpolatedData: $data")
+//        for(data in outputData){
+//            Log.d("Apena", "DataHandler interpolatedData: $data")
+//        }
+        val float =  1.0
+        if (outputData[0].toDouble() == 1.0 ){
+            herttype=0
+        }else if (outputData[1].toDouble() == 1.0){
+            herttype=1
         }
-        herttype = m(outputData)
-
         tflite.close()
 //        mHandler!!.obtainMessage(FamilyFragment.STATE_TYPE, herttype, -1)
 //            .sendToTarget()

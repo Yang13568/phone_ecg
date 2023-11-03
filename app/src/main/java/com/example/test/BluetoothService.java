@@ -97,7 +97,7 @@ public class BluetoothService {
         mState = state;
 
         // Give the new state to the Handler so the UI Activity can update
-        mHandler.obtainMessage(FamilyFragment.MESSAGE_STATE_CHANGE, state, -1).sendToTarget();
+        mHandler.obtainMessage(StateFragment.MESSAGE_STATE_CHANGE, state, -1).sendToTarget();
     }
 
     /**
@@ -200,10 +200,10 @@ public class BluetoothService {
 
         //mHandler.obtainMessage(),Returns a new Message from the global message pool, and
         //also sets the what member of the returned Message.
-        Message msg = mHandler.obtainMessage(FamilyFragment.MESSAGE_DEVICE_NAME);
+        Message msg = mHandler.obtainMessage(StateFragment.MESSAGE_DEVICE_NAME);
 
         Bundle bundle = new Bundle();
-        bundle.putString(FamilyFragment.DEVICE_NAME, device.getName());
+        bundle.putString(StateFragment.DEVICE_NAME, device.getName());
         msg.setData(bundle);
         mHandler.sendMessage(msg);
         Log.d("connected_check", "connected");
@@ -256,9 +256,9 @@ public class BluetoothService {
         setState(STATE_LISTEN);
 
         // Send a failure message back to the Activity
-        Message msg = mHandler.obtainMessage(FamilyFragment.MESSAGE_TOAST);
+        Message msg = mHandler.obtainMessage(StateFragment.MESSAGE_TOAST);
         Bundle bundle = new Bundle();
-        bundle.putString(FamilyFragment.TOAST, "Unable to connect device");
+        bundle.putString(StateFragment.TOAST, "Unable to connect device");
         msg.setData(bundle);
         mHandler.sendMessage(msg);
     }
@@ -270,9 +270,9 @@ public class BluetoothService {
         setState(STATE_LISTEN);
 
         // Send a failure message back to the Activity
-        Message msg = mHandler.obtainMessage(FamilyFragment.MESSAGE_TOAST);
+        Message msg = mHandler.obtainMessage(StateFragment.MESSAGE_TOAST);
         Bundle bundle = new Bundle();
-        bundle.putString(FamilyFragment.TOAST, "Device connection was lost");
+        bundle.putString(StateFragment.TOAST, "Device connection was lost");
         msg.setData(bundle);
         mHandler.sendMessage(msg);
 
@@ -471,7 +471,7 @@ public class BluetoothService {
                     Log.d("buffer show", "顯示" + InfoStr);
 
                     lock.lock();
-                    mHandler.obtainMessage(FamilyFragment.MESSAGE_READ, bytes, -1, rcvData)
+                    mHandler.obtainMessage(StateFragment.MESSAGE_READ, bytes, -1, rcvData)
                             .sendToTarget();
 
                     for (int i = 0; i < 1000; i++) {
@@ -496,7 +496,7 @@ public class BluetoothService {
             try {
                 mmOutStream.write(buffer);
                 // Share the sent message back to the UI Activity
-                mHandler.obtainMessage(FamilyFragment.MESSAGE_WRITE, -1, -1, buffer)
+                mHandler.obtainMessage(StateFragment.MESSAGE_WRITE, -1, -1, buffer)
                         .sendToTarget();
             } catch (IOException e) {
                 Log.e(TAG, "Exception during write", e);
