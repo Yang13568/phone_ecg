@@ -1,6 +1,7 @@
 package com.example.test
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.os.Build
@@ -43,6 +44,7 @@ class FamilyFragment : Fragment() {
     private var heartList = ArrayList<Float>()
     private var mHeartText = heart_textview
     private var isVariableTrue = true
+    private var unNormal_count = ArrayList<Int>()
 
     @SuppressLint("NewApi")
     override fun onCreateView(
@@ -83,12 +85,12 @@ class FamilyFragment : Fragment() {
             if (currentIndex < csvList.size) {
                 val row = csvList[currentIndex]
                 val data = ArrayList<Entry>()
-                val windowsize = 360
+                val windowsize = 100
                 var start = 0
                 var end = windowsize
 
                 val handler = Handler()
-                val delayMillis = 4000 // 延迟1秒
+                val delayMillis = 2000 // 延迟1秒
 
                 val updateChart = object : Runnable {
                     override fun run() {
@@ -123,7 +125,7 @@ class FamilyFragment : Fragment() {
                                     if (iheart_count == 100 && isVariableTrue==true) {
                                         val after_heartList = linearInterpolation2(heartList,360)
                                         val heart_result =
-                                            after_heartList?.let { run_apnea_Model(it, "model_9532.tflite") }
+                                            after_heartList?.let { run_apnea_Model(it, "model_9750.tflite") }
                                         if (heart_result == 0) mHeartText.setTextColor(Color.GREEN)
                                         else mHeartText.setTextColor(Color.RED)
                                         val result = when (heart_result) {
@@ -135,6 +137,30 @@ class FamilyFragment : Fragment() {
                                             else -> null
                                         }
                                         mHeartText.text = result
+                                        if(result!="Normal"){
+                                            if (unNormal_count.size>60){
+                                                unNormal_count.removeAt(0)
+                                            }
+                                            unNormal_count.add(1)
+                                            if (unNormal_count.count{it == 1} > 10){
+                                                val builder = AlertDialog.Builder(requireContext())
+                                                // 設置對話框標題和訊息
+                                                builder.setTitle("警告")
+                                                builder.setMessage("短時間內出現多次心律不整")
+                                                // 設置按鈕和按鈕的監聽器
+                                                builder.setPositiveButton("確定") { dialog, which ->
+                                                    // 在這裡處理點擊“確定”按鈕後的事件
+                                                }
+                                                // 建立AlertDialog對象並顯示
+                                                val dialog: AlertDialog = builder.create()
+                                                dialog.show()
+                                            }
+                                        }else{
+                                            if (unNormal_count.size>60){
+                                                unNormal_count.removeAt(0)
+                                            }
+                                            unNormal_count.add(0)
+                                        }
 //                                        Log.d("wtf8181","result:"+result)
                                         iheart_count = 0
                                         heartList.clear()
@@ -147,7 +173,7 @@ class FamilyFragment : Fragment() {
                             lineDataSet.setDrawCircles(false)
                             val lineData = LineData(lineDataSet)
                             linechart.data = lineData
-                            linechart.animateXY(4000, 0)
+                            linechart.animateXY(2000, 0)
                             linechart.invalidate()
                             start += windowsize
                             end += windowsize

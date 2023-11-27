@@ -68,7 +68,6 @@ class StateFragment : Fragment() {
     private lateinit var mStateText: TextView
     private lateinit var mApText: TextView
     private lateinit var mHourText: TextView
-    private lateinit var mtestText: TextView
     private lateinit var mBTArrayAdapter: ArrayAdapter<String>
     private lateinit var viewModel: MyViewModel
 
@@ -76,6 +75,7 @@ class StateFragment : Fragment() {
     private var State_array = mutableListOf<String?>()
     private var frequencyMap = mutableMapOf<String, Int>()
     private var hour_apnea = ArrayList<Int>()
+    private var unNormal_count = ArrayList<Int>()
     private val REQUEST_BLUETOOTH_PERMISSION = 1
     private var isDeviceConnected = true
     private val handler = Handler()
@@ -128,7 +128,6 @@ class StateFragment : Fragment() {
         mApText = view.findViewById(R.id.Apnea_Text)
         mbtn_Scan = view.findViewById(R.id.btn_scan)
         mStateText = view.findViewById(R.id.state)
-        mtestText = view.findViewById(R.id.textView15)
         mHourText = view.findViewById(R.id.onehour_Text)
         mbtn_Apnea = view.findViewById(R.id.apnea_btn)
         mbtn_Scan.setOnClickListener {
@@ -423,7 +422,6 @@ class StateFragment : Fragment() {
                 val rdata = msg.obj as ArrayList<Any>
                 val heartbeat = rdata[0]
                 val state = rdata[1] as IntArray
-                val statenormalize = rdata[2] as IntArray
                 State_array.clear()
                 for (i in 0..4) {
                     val toastMessage = when (state[i]) {
@@ -436,22 +434,7 @@ class StateFragment : Fragment() {
                     }
                     if (toastMessage != null) {
                         State_array.add(toastMessage)
-                        Log.d("wtf8181","judge:"+toastMessage)
-                    }///////////////////////////////////////////////
-                    val toastMessagenormalize = when (statenormalize[i]) {
-                        0 -> "Normal"
-                        1 -> "S"
-                        2 -> "V"
-                        3 -> "F"
-                        4 -> "Q"
-                        else -> null
                     }
-                    if (toastMessage != null) {
-                        State_array.add(toastMessage)
-                        Log.d("wtf8181","judgenormalize:"+toastMessagenormalize)
-
-                        mtestText.text = toastMessagenormalize
-                    }///////////////////////////////////////////////////////////////
                 }
                 frequencyMap.clear()
                 var mostFrequentToast: String? = null
@@ -470,6 +453,31 @@ class StateFragment : Fragment() {
                     }
                 }
                 mStateText.text = mostFrequentToast
+                if(mostFrequentToast!="Normal"){
+                    if (unNormal_count.size>60){
+                        unNormal_count.removeAt(0)
+                    }
+                    unNormal_count.add(1)
+                    if (unNormal_count.count{it == 1} > 10){
+                        val builder = AlertDialog.Builder(requireContext())
+                        // 設置對話框標題和訊息
+                        builder.setTitle("警告")
+                        builder.setMessage("短時間內出現多次心律不整")
+                        // 設置按鈕和按鈕的監聽器
+                        builder.setPositiveButton("確定") { dialog, which ->
+                            // 在這裡處理點擊“確定”按鈕後的事件
+                        }
+                        // 建立AlertDialog對象並顯示
+                        val dialog: AlertDialog = builder.create()
+                        dialog.show()
+                    }
+                }else{
+                    if (unNormal_count.size>60){
+                        unNormal_count.removeAt(0)
+                    }
+                    unNormal_count.add(0)
+                }
+
                 Thread {
                     val data = hashMapOf(
                         "heartbeat" to heartbeat,
