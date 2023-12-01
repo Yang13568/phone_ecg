@@ -37,8 +37,13 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.android.synthetic.main.fragment_state.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.w3c.dom.Text
+import java.security.Timestamp
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
@@ -201,73 +206,91 @@ class RecordFragment : Fragment() {
             if (choose_date != "" && choose_time != -1 && choose_mod != -1 && choose_unit != -1) {
                 val choosetime = "$choose_date $choose_time:00:00"
                 val starttime = convertTimeToTimestamp(choosetime)
-                getRecord(starttime, choose_unit, choose_time, choose_mod,view)
+                val startTimeStamp = starttime
+                var endunit = 0
+                when (choose_unit) {
+                    0 -> endunit = 24
+                    1 -> endunit = 12
+                    2 -> endunit = 1
+                }
+                val endTimeStamp = starttime + (endunit * 3600)// 結束時間戳記（以秒為單位）
+                val startDate = Date(startTimeStamp * 1000L) // 將秒數轉換為Date物件
+                val endDate = Date(endTimeStamp * 1000L) // 將秒數轉換為Date物件
+                Log.d(
+                    "wtf8181",
+                    "endunit:" + endunit.toString() + "start:" + startTimeStamp + "end:" + endTimeStamp
+                )
+                if (choose_mod == 0) {
+                        db.collection("USER")
+                            .whereEqualTo("userEmail", email)
+                            .get()
+                            .addOnSuccessListener { querySnapshot ->
+                                for (document in querySnapshot.documents) {
+                                    val documentId = document.id
+                                    val userRef = db.collection("USER").document(documentId)
+                                    dataList = mutableListOf()
+                                    // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
+                                    userRef.collection("heartRecord")
+                                        .whereGreaterThanOrEqualTo("timestamp", startDate)
+                                        .whereLessThanOrEqualTo("timestamp", endDate)
+                                        .orderBy("timestamp", Query.Direction.ASCENDING)
+                                        .get()
+                                        .addOnSuccessListener { querySnapshot ->
+                                            // 构建文档列表
+                                            for (doc in querySnapshot.documents) {
+                                                documents.add(doc)
+                                                val timestamp = doc.getTimestamp("timestamp")
+                                                val state = doc.getString("state")
+                                                if (timestamp != null) {
+                                                    record_data.add(
+                                                        mutableListOf(
+                                                            timestamp.seconds.toString(),
+                                                            state
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                            getRecord(starttime, choose_unit, choose_time, choose_mod, view)
+                                        }
+                                }
+                            }
+                } else if (choose_mod == 1) {
+                        db.collection("USER")
+                            .whereEqualTo("userEmail", email)
+                            .get()
+                            .addOnSuccessListener { querySnapshot ->
+                                for (document in querySnapshot.documents) {
+                                    val documentId = document.id
+                                    val userRef = db.collection("USER").document(documentId)
+                                    dataList = mutableListOf()
+                                    // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
+                                    userRef.collection("apneaRecord")
+                                        .orderBy("timestamp", Query.Direction.ASCENDING)
+                                        .get()
+                                        .addOnSuccessListener { querySnapshot ->
+                                            // 构建文档列表
+                                            for (doc in querySnapshot.documents) {
+                                                documents.add(doc)
+                                                val timestamp = doc.getTimestamp("timestamp")
+                                                val state = doc.getLong("state")?.toString()
+                                                if (timestamp != null) {
+
+                                                    Log.d("wtf8181", timestamp.toString())
+                                                    apnea_record_data.add(
+                                                        mutableListOf(
+                                                            timestamp.seconds.toString(),
+                                                            state
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                            getRecord(starttime, choose_unit, choose_time, choose_mod, view)
+                                        }
+                                }
+                            }
+                }
             }
         }
-        //HeartRecord
-        db.collection("USER")
-            .whereEqualTo("userEmail", email)
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                for (document in querySnapshot.documents) {
-                    val documentId = document.id
-                    val userRef = db.collection("USER").document(documentId)
-                    dataList = mutableListOf()
-                    // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
-                    userRef.collection("heartRecord")
-                        .orderBy("timestamp", Query.Direction.ASCENDING)
-                        .get()
-                        .addOnSuccessListener { querySnapshot ->
-                            // 构建文档列表
-                            for (doc in querySnapshot.documents) {
-                                documents.add(doc)
-                                val timestamp = doc.getTimestamp("timestamp")
-                                val state = doc.getString("state")
-                                if (timestamp != null) {
-                                    record_data.add(
-                                        mutableListOf(
-                                            timestamp.seconds.toString(),
-                                            state
-                                        )
-                                    )
-                                }
-                            }
-
-                        }
-                }
-            }
-        //ApneaRecord
-        db.collection("USER")
-            .whereEqualTo("userEmail", email)
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                for (document in querySnapshot.documents) {
-                    val documentId = document.id
-                    val userRef = db.collection("USER").document(documentId)
-                    dataList = mutableListOf()
-                    // 获取用户的 Heartbeat_15s 子集合并按照时间戳倒序排序
-                    userRef.collection("apneaRecord")
-                        .orderBy("timestamp", Query.Direction.ASCENDING)
-                        .get()
-                        .addOnSuccessListener { querySnapshot ->
-                            // 构建文档列表
-                            for (doc in querySnapshot.documents) {
-                                documents.add(doc)
-                                val timestamp = doc.getTimestamp("timestamp")
-                                val state = doc.getLong("state")?.toString()
-                                if (timestamp != null) {
-                                    apnea_record_data.add(
-                                        mutableListOf(
-                                            timestamp.seconds.toString(),
-                                            state
-                                        )
-                                    )
-                                }
-                            }
-
-                        }
-                }
-            }
     }
 
     fun convertTimeToTimestamp(timeString: String): Long {
@@ -291,8 +314,8 @@ class RecordFragment : Fragment() {
 
     fun getRecord(starttime: Long, unit: Int, choosehour: Int, mode: Int, view: View) {
         if (mode == 1) {
-            Log.d("wtf8181","睡眠呼吸中止")
-            if (unit == 0){
+            Log.d("wtf8181", "睡眠呼吸中止")
+            if (unit == 0) {
                 var Data = MutableList(6) { LongArray(2) }
                 var date_array = ArrayList<String>()
                 for (i in 0..5) {
@@ -303,37 +326,55 @@ class RecordFragment : Fragment() {
                 for (i in apnea_record_data.indices) {
                     if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 86400) {
                         if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 14400) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[0][0]++
                                 "1" -> Data[0][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 14400 && apnea_record_data[i][0]?.toLong()!! <= starttime + 28800) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[1][0]++
                                 "1" -> Data[1][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 28800 && apnea_record_data[i][0]?.toLong()!! <= starttime + 43200) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[2][0]++
                                 "1" -> Data[2][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 43200 && apnea_record_data[i][0]?.toLong()!! <= starttime + 57600) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[3][0]++
                                 "1" -> Data[3][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 57600 && apnea_record_data[i][0]?.toLong()!! <= starttime + 72000) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[4][0]++
                                 "1" -> Data[4][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 72000 && apnea_record_data[i][0]?.toLong()!! < starttime + 86400) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[5][0]++
                                 "1" -> Data[5][1]++
@@ -341,8 +382,8 @@ class RecordFragment : Fragment() {
                         }
                     }
                 }
-                drawchart(view, Data, date_array,mode)
-            }else if(unit==1){
+                drawchart(view, Data, date_array, mode)
+            } else if (unit == 1) {
                 var Data = MutableList(6) { LongArray(2) }
                 var date_array = ArrayList<String>()
                 for (i in 0..5) {
@@ -353,37 +394,55 @@ class RecordFragment : Fragment() {
                 for (i in apnea_record_data.indices) {
                     if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 43200) {
                         if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 7200) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[0][0]++
                                 "1" -> Data[0][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 7200 && apnea_record_data[i][0]?.toLong()!! <= starttime + 14400) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[1][0]++
                                 "1" -> Data[1][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 14400 && apnea_record_data[i][0]?.toLong()!! <= starttime + 21600) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[2][0]++
                                 "1" -> Data[2][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 21600 && apnea_record_data[i][0]?.toLong()!! <= starttime + 28800) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[3][0]++
                                 "1" -> Data[3][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 28800 && apnea_record_data[i][0]?.toLong()!! <= starttime + 36000) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[4][0]++
                                 "1" -> Data[4][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 36000 && apnea_record_data[i][0]?.toLong()!! < starttime + 43200) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[5][0]++
                                 "1" -> Data[5][1]++
@@ -391,8 +450,8 @@ class RecordFragment : Fragment() {
                         }
                     }
                 }
-                drawchart(view, Data, date_array,mode)
-            }else if(unit==2){
+                drawchart(view, Data, date_array, mode)
+            } else if (unit == 2) {
                 var Data = MutableList(6) { LongArray(2) }
                 var date_array = ArrayList<String>()
                 date_array.add("0")
@@ -404,37 +463,55 @@ class RecordFragment : Fragment() {
                 for (i in apnea_record_data.indices) {
                     if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 3600) {
                         if (apnea_record_data[i][0]?.toLong()!! > starttime && apnea_record_data[i][0]?.toLong()!! <= starttime + 600) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[0][0]++
                                 "1" -> Data[0][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 600 && apnea_record_data[i][0]?.toLong()!! <= starttime + 1200) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[1][0]++
                                 "1" -> Data[1][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 1200 && apnea_record_data[i][0]?.toLong()!! <= starttime + 1800) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[2][0]++
                                 "1" -> Data[2][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 1800 && apnea_record_data[i][0]?.toLong()!! <= starttime + 2400) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[3][0]++
                                 "1" -> Data[3][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 2400 && apnea_record_data[i][0]?.toLong()!! <= starttime + 3000) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[4][0]++
                                 "1" -> Data[4][1]++
                             }
                         } else if (apnea_record_data[i][0]?.toLong()!! > starttime + 3000 && apnea_record_data[i][0]?.toLong()!! < starttime + 3600) {
-                            Log.d("wtf8181","time:"+apnea_record_data[i][0]+"state:"+apnea_record_data[i][1])
+                            Log.d(
+                                "wtf8181",
+                                "time:" + apnea_record_data[i][0] + "state:" + apnea_record_data[i][1]
+                            )
                             when (apnea_record_data[i][1]) {
                                 "0" -> Data[5][0]++
                                 "1" -> Data[5][1]++
@@ -442,10 +519,10 @@ class RecordFragment : Fragment() {
                         }
                     }
                 }
-                drawchart(view, Data, date_array,mode)
+                drawchart(view, Data, date_array, mode)
             }
         } else if (mode == 0) {
-            Log.d("wtf8181","心律不整")
+            Log.d("wtf8181", "心律不整")
             if (unit == 0) {//24h
                 var Data = MutableList(6) { LongArray(5) }
                 var date_array = ArrayList<String>()
@@ -507,7 +584,7 @@ class RecordFragment : Fragment() {
                         }
                     }
                 }
-                drawchart(view, Data, date_array,mode)
+                drawchart(view, Data, date_array, mode)
             } else if (unit == 1) {//12h
                 var Data = MutableList(6) { LongArray(5) }
                 var date_array = ArrayList<String>()
@@ -569,7 +646,7 @@ class RecordFragment : Fragment() {
                         }
                     }
                 }
-                drawchart(view, Data, date_array,mode)
+                drawchart(view, Data, date_array, mode)
             } else if (unit == 2) {//1h
                 var Data = MutableList(6) { LongArray(5) }
                 var date_array = ArrayList<String>()
@@ -632,7 +709,7 @@ class RecordFragment : Fragment() {
                         }
                     }
                 }
-                drawchart(view, Data, date_array,mode)
+                drawchart(view, Data, date_array, mode)
             }
         } else Log.d("wtf8181", "getRecord Wrong")
     }
@@ -664,7 +741,16 @@ class RecordFragment : Fragment() {
         dialog.show()
     }
 
-    fun drawchart(view: View, Data: MutableList<LongArray>, date_array: ArrayList<String>,mode: Int) {
+    fun getrecordfromdatabase() {
+
+    }
+
+    fun drawchart(
+        view: View,
+        Data: MutableList<LongArray>,
+        date_array: ArrayList<String>,
+        mode: Int
+    ) {
         val barChart = view.findViewById<BarChart>(R.id.barChart)
         val entries = ArrayList<BarEntry>()
         for (i in Data.indices) {
@@ -686,7 +772,7 @@ class RecordFragment : Fragment() {
                 Color.DKGRAY
             )
             barDataSet.stackLabels = arrayOf("Normal", "S", "V", "F", "Q")
-        }else if(mode==1){
+        } else if (mode == 1) {
             barDataSet.setColors(
                 Color.GREEN,
                 Color.RED
